@@ -1,15 +1,13 @@
 /* This example code was written by Juliusz Chroboczek.
    You are free to cut'n'paste from it to your heart's content. */
-
-/* For crypt */
-#define _GNU_SOURCE
-
+extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <time.h>
 #include <sys/time.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -18,6 +16,7 @@
 #include <sys/signal.h>
 
 #include "dht.h"
+#include "crypt/Checksum.h"
 
 #define MAX_BOOTSTRAP_NODES 20
 static struct sockaddr_storage bootstrap_nodes[MAX_BOOTSTRAP_NODES];
@@ -69,7 +68,7 @@ init_signals(void)
 }
 
 const unsigned char hash[20] = {
-    0x54, 0x57, 0x87, 0x89, 0xdf, 0xc4, 0x23, 0xee, 0xf6, 0x03,
+    0x55, 0x57, 0x87, 0x89, 0xdf, 0xc4, 0x23, 0xee, 0xf6, 0x03,
     0x1f, 0x81, 0x94, 0xa9, 0x3a, 0x16, 0x98, 0x8b, 0x72, 0x7b
 };
 
@@ -90,6 +89,12 @@ callback(void *closure,
 
 static unsigned char buf[4096];
 
+static void printUsageAndExit(){
+	printf("Usage: dht-example [-q] [-4] [-6] [-i filename] [-b address]...\n"
+	           "                   port [address port]...\n");
+	exit(1);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -98,7 +103,8 @@ main(int argc, char **argv)
     int have_id = 0;
     unsigned char myid[20];
     time_t tosleep = 0;
-    char *id_file = "dht-example.id";
+    char default_file[] = "dht-example.id";
+    char *id_file = default_file;
     int opt;
     int quiet = 0, ipv4 = 1, ipv6 = 1;
     struct sockaddr_in sin;
@@ -136,14 +142,14 @@ main(int argc, char **argv)
                 memcpy(&sin6.sin6_addr, buf, 16);
                 break;
             }
-            goto usage;
+            printUsageAndExit();
         }
             break;
         case 'i':
             id_file = optarg;
             break;
         default:
-            goto usage;
+            printUsageAndExit();
         }
     }
 
@@ -185,26 +191,32 @@ main(int argc, char **argv)
     }
 
     {
-        unsigned seed;
-        read(fd, &seed, sizeof(seed));
-        srandom(seed);
+        unsigned int seed;
+        size_t size;
+        size = read(fd, &seed, sizeof(seed));
+        // If /dev/urandom is available, initialize the srandom function with the read seed,
+        // otherwise take the actual time
+        if(size>-1){
+        	srandom(seed);
+        }else{
+        	srandom(time(NULL));
+        }
     }
 
     close(fd);
 
     if(argc < 2)
-        goto usage;
+        printUsageAndExit();
 
     i = optind;
 
     if(argc < i + 1)
-        goto usage;
+        printUsageAndExit();
 
     port = atoi(argv[i++]);
     if(port <= 0 || port >= 0x10000)
-        goto usage;
+        printUsageAndExit();
 
-    while(i < argc) {
         struct addrinfo hints, *info, *infop;
         memset(&hints, 0, sizeof(hints));
         hints.ai_socktype = SOCK_DGRAM;
@@ -214,15 +226,11 @@ main(int argc, char **argv)
             hints.ai_family = AF_INET6;
         else
             hints.ai_family = 0;
-        rc = getaddrinfo(argv[i], argv[i + 1], &hints, &info);
+        rc = getaddrinfo("dht.transmissionbt.com", "6881", &hints, &info);
         if(rc != 0) {
             fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rc));
             exit(1);
         }
-
-        i++;
-        if(i >= argc)
-            goto usage;
 
         infop = info;
         while(infop) {
@@ -232,9 +240,7 @@ main(int argc, char **argv)
             num_bootstrap_nodes++;
         }
         freeaddrinfo(info);
-
-        i++;
-    }
+        printf("bootstrappingnodes: %d\n",num_bootstrap_nodes);
 
     /* If you set dht_debug to a stream, every action taken by the DHT will
        be logged. */
@@ -378,9 +384,9 @@ main(int argc, char **argv)
            idea to reannounce every 28 minutes or so. */
         if(searching) {
             if(s >= 0)
-                dht_search(hash, 0, AF_INET, callback, NULL);
+                dht_search(hash, 6889, AF_INET, callback, NULL);
             if(s6 >= 0)
-                dht_search(hash, 0, AF_INET6, callback, NULL);
+                dht_search(hash, 6889, AF_INET6, callback, NULL);
             searching = 0;
         }
 
@@ -402,11 +408,6 @@ main(int argc, char **argv)
 
     dht_uninit();
     return 0;
-    
- usage:
-    printf("Usage: dht-example [-q] [-4] [-6] [-i filename] [-b address]...\n"
-           "                   port [address port]...\n");
-    exit(1);
 }
 
 /* Functions called by the DHT. */
@@ -444,7 +445,9 @@ dht_hash(void *hash_return, int hash_size,
          const void *v2, int len2,
          const void *v3, int len3)
 {
-    const char *c1 = v1, *c2 = v2, *c3 = v3;
+    const char *c1 = (const char *)v1;
+    const char *c2 = (const char *)v2;
+    const char *c3 = (const char *)v3;
     char key[9];                /* crypt is limited to 8 characters */
     int i;
 
@@ -457,7 +460,7 @@ dht_hash(void *hash_return, int hash_size,
         key[2 + i] = CRYPT_HAPPY(c2[i]);
     for(i = 0; i < 2 && i < len1; i++)
         key[6 + i] = CRYPT_HAPPY(c3[i]);
-    strncpy(hash_return, crypt(key, "jc"), hash_size);
+    strncpy((char *)hash_return, crypt(key, "jc"), hash_size);
 }
 #endif
 
@@ -477,4 +480,5 @@ dht_random_bytes(void *buf, size_t size)
     errno = save;
 
     return rc;
+}
 }

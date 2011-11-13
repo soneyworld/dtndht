@@ -163,6 +163,13 @@ This is a function that takes an IP address and returns true if this
 address should be silently ignored.  Do not use this feature unless you
 really must -- Kademlia supposes transitive reachability.
 
+Functions possibly provided by you
+**********************************
+
+If you haven't got openssl, you have got to implement this functions on 
+your own, otherwise (and normally) the library is using openssl for this
+functions.
+
 * dht_hash
 
 This should compute a reasonably strong cryptographic hash of the passed

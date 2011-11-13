@@ -1211,13 +1211,14 @@ dht_search(const unsigned char *id, int port, int af,
            means that we can merge replies for both searches. */
         int i;
         sr->done = 0;
+    again:
         for(i = 0; i < sr->numnodes; i++) {
             struct search_node *n;
             n = &sr->nodes[i];
             /* Discard any doubtful nodes. */
             if(n->pinged >= 3 || n->reply_time < now.tv_sec - 7200) {
                 flush_search_node(n, sr);
-                continue;
+                goto again;
             }
             n->pinged = 0;
             n->token_len = 0;
