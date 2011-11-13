@@ -90,6 +90,12 @@ callback(void *closure,
 
 static unsigned char buf[4096];
 
+static void printUsageAndExit(){
+	printf("Usage: dht-example [-q] [-4] [-6] [-i filename] [-b address]...\n"
+	           "                   port [address port]...\n");
+	exit(1);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -136,14 +142,14 @@ main(int argc, char **argv)
                 memcpy(&sin6.sin6_addr, buf, 16);
                 break;
             }
-            goto usage;
+            printUsageAndExit();
         }
             break;
         case 'i':
             id_file = optarg;
             break;
         default:
-            goto usage;
+            printUsageAndExit();
         }
     }
 
@@ -193,18 +199,17 @@ main(int argc, char **argv)
     close(fd);
 
     if(argc < 2)
-        goto usage;
+        printUsageAndExit();
 
     i = optind;
 
     if(argc < i + 1)
-        goto usage;
+        printUsageAndExit();
 
     port = atoi(argv[i++]);
     if(port <= 0 || port >= 0x10000)
-        goto usage;
+        printUsageAndExit();
 
-    while(i < argc) {
         struct addrinfo hints, *info, *infop;
         memset(&hints, 0, sizeof(hints));
         hints.ai_socktype = SOCK_DGRAM;
@@ -214,15 +219,11 @@ main(int argc, char **argv)
             hints.ai_family = AF_INET6;
         else
             hints.ai_family = 0;
-        rc = getaddrinfo(argv[i], argv[i + 1], &hints, &info);
+        rc = getaddrinfo("dht.transmissionbt.com", "6881", &hints, &info);
         if(rc != 0) {
             fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rc));
             exit(1);
         }
-
-        i++;
-        if(i >= argc)
-            goto usage;
 
         infop = info;
         while(infop) {
@@ -232,9 +233,7 @@ main(int argc, char **argv)
             num_bootstrap_nodes++;
         }
         freeaddrinfo(info);
-
-        i++;
-    }
+        printf("bootstrappingnodes: %d\n",num_bootstrap_nodes);
 
     /* If you set dht_debug to a stream, every action taken by the DHT will
        be logged. */
@@ -402,11 +401,6 @@ main(int argc, char **argv)
 
     dht_uninit();
     return 0;
-    
- usage:
-    printf("Usage: dht-example [-q] [-4] [-6] [-i filename] [-b address]...\n"
-           "                   port [address port]...\n");
-    exit(1);
 }
 
 /* Functions called by the DHT. */
