@@ -69,7 +69,7 @@ init_signals(void)
 }
 
 const unsigned char hash[20] = {
-    0x54, 0x57, 0x87, 0x89, 0xdf, 0xc4, 0x23, 0xee, 0xf6, 0x03,
+    0x55, 0x57, 0x87, 0x89, 0xdf, 0xc4, 0x23, 0xee, 0xf6, 0x03,
     0x1f, 0x81, 0x94, 0xa9, 0x3a, 0x16, 0x98, 0x8b, 0x72, 0x7b
 };
 
@@ -377,9 +377,9 @@ main(int argc, char **argv)
            idea to reannounce every 28 minutes or so. */
         if(searching) {
             if(s >= 0)
-                dht_search(hash, 0, AF_INET, callback, NULL);
+                dht_search(hash, 6889, AF_INET, callback, NULL);
             if(s6 >= 0)
-                dht_search(hash, 0, AF_INET6, callback, NULL);
+                dht_search(hash, 6889, AF_INET6, callback, NULL);
             searching = 0;
         }
 
