@@ -191,9 +191,16 @@ main(int argc, char **argv)
     }
 
     {
-        unsigned seed;
-        read(fd, &seed, sizeof(seed));
-        srandom(seed);
+        unsigned int seed;
+        size_t size;
+        size = read(fd, &seed, sizeof(seed));
+        // If /dev/urandom is available, initialize the srandom function with the read seed,
+        // otherwise take the actual time
+        if(size>-1){
+        	srandom(seed);
+        }else{
+        	srandom(time(NULL));
+        }
     }
 
     close(fd);
