@@ -19,6 +19,7 @@
 #include <sys/signal.h>
 
 #include "dht.h"
+#include "crypt/Checksum.h"
 
 #define MAX_BOOTSTRAP_NODES 20
 static struct sockaddr_storage bootstrap_nodes[MAX_BOOTSTRAP_NODES];
