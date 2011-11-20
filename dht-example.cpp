@@ -1,9 +1,6 @@
 /* This example code was written by Juliusz Chroboczek.
    You are free to cut'n'paste from it to your heart's content. */
-
-/* For crypt */
-#define _GNU_SOURCE
-
+extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -106,7 +103,8 @@ main(int argc, char **argv)
     int have_id = 0;
     unsigned char myid[20];
     time_t tosleep = 0;
-    char *id_file = "dht-example.id";
+    char default_file[] = "dht-example.id";
+    char *id_file = default_file;
     int opt;
     int quiet = 0, ipv4 = 1, ipv6 = 1;
     struct sockaddr_in sin;
@@ -447,7 +445,9 @@ dht_hash(void *hash_return, int hash_size,
          const void *v2, int len2,
          const void *v3, int len3)
 {
-    const char *c1 = v1, *c2 = v2, *c3 = v3;
+    const char *c1 = (const char *)v1;
+    const char *c2 = (const char *)v2;
+    const char *c3 = (const char *)v3;
     char key[9];                /* crypt is limited to 8 characters */
     int i;
 
@@ -460,7 +460,7 @@ dht_hash(void *hash_return, int hash_size,
         key[2 + i] = CRYPT_HAPPY(c2[i]);
     for(i = 0; i < 2 && i < len1; i++)
         key[6 + i] = CRYPT_HAPPY(c3[i]);
-    strncpy(hash_return, crypt(key, "jc"), hash_size);
+    strncpy((char *)hash_return, crypt(key, "jc"), hash_size);
 }
 #endif
 
@@ -480,4 +480,5 @@ dht_random_bytes(void *buf, size_t size)
     errno = save;
 
     return rc;
+}
 }

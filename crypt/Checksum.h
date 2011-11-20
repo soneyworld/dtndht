@@ -13,6 +13,5 @@
 #endif
 
 size_t getChecksumLength();
-void calcchecksum(const char* file, unsigned char *md);
 void calcchecksum(const char* data, unsigned char *md, size_t length);
 #endif /* CHECKSUM_H_ */
