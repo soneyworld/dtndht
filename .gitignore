@@ -1,3 +1,4 @@
 *.o
 dht-example
 dht-example.id
+*.cache/
