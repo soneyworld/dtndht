@@ -2,3 +2,14 @@
 dht-example
 dht-example.id
 *.cache/
+Makefile.in
+Makefile
+stamp-h1
+aclocal.m4
+configure
+config.h
+config.h.in~
+Makefile.in
+config.log
+config.status
+install-sh
