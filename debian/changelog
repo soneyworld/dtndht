@@ -1,0 +1,8 @@
+libbtdht (0.1.1) experimental; urgency=low
+
+  * First lib release
+    * OPENSSL integrated for easier usage if OPENSSL is available
+
+libbtdht (0.1.0) experimental; urgency=low
+
+  * Created versioning of the library 

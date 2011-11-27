@@ -1,9 +1,59 @@
-AC_PREREQ([2.68])
-AC_INIT([BtDHTLib], [0.1], [lorentze@ibr.cs.tu-bs.de])
-AM_INIT_AUTOMAKE
-AC_CONFIG_HEADERS([config.h])
+dnl --------------------------------
+dnl Package name and version number
+dnl --------------------------------
 
-# Checks for programs.
+# include version information
+m4_include([version.m4])
+
+dnl --------------------------------
+dnl Initialization macros.
+dnl --------------------------------
+
+AC_PREREQ([2.68])
+AC_INIT([libbtdht], [PKG_FULL_VERSION], [lorentze@ibr.cs.tu-bs.de])
+AM_INIT_AUTOMAKE
+AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_SRCDIR([src/dht.h])
+AC_CONFIG_HEADERS([config.h])
+LT_INIT
+
+dnl --------------------------------
+dnl library version number
+dnl --------------------------------
+
+#API version
+GENERIC_API_VERSION=PKG_MAJOR_VERSION.PKG_MINOR_VERSION
+
+#shared library versioning
+GENERIC_LIBRARY_VERSION=PKG_LIB_VERSION
+#                       | | |
+#                +------+ | +---+
+#                |        |     |
+#             current:revision:age
+#                |        |     |
+#                |        |     +- increment if interfaces have been added
+#                |        |        set to zero if interfaces have been removed
+#                                  or changed
+#                |        +- increment if source code has changed
+#                |           set to zero if current is incremented
+#                +- increment if interfaces have been added, removed or changed
+
+# define the library name
+GENERIC_LIBRARY_NAME=$PACKAGE_NAME
+GENERIC_VERSION=$PACKAGE_VERSION
+GENERIC_RELEASE=PKG_MAJOR_VERSION.PKG_MINOR_VERSION
+
+AC_SUBST(GENERIC_API_VERSION)
+AC_SUBST(GENERIC_LIBRARY_VERSION)
+AC_SUBST(GENERIC_LIBRARY_NAME)
+AC_SUBST(GENERIC_RELEASE)
+AC_SUBST(GENERIC_VERSION)
+
+
+dnl -----------------------------------------------
+dnl Checks for programs.
+dnl -----------------------------------------------
+
 AC_PROG_CC
 
 # Checks for libraries.
@@ -21,5 +71,31 @@ AC_TYPE_SIZE_T
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([gettimeofday inet_ntoa memmove memset select socket strtol])
 
-AC_CONFIG_FILES([Makefile])
+# check for openssl
+AC_ARG_WITH(openssl,
+        AS_HELP_STRING([--with-openssl], [Build with openssl support
+                @<:@default=yes@:>@]),
+        [
+        if test "x$with_openssl" = "xyes"; then
+                PKG_CHECK_MODULES(OPENSSL, openssl, [
+                        use_openssl="yes"
+                        AC_DEFINE(HAVE_OPENSSL, [1], ["openssl library is available"])
+                        AC_SUBST(OPENSSL_CFLAGS)
+                        AC_SUBST(OPENSSL_LIBS)
+                ], [
+                        use_openssl="no"
+                        AC_MSG_WARN([openssl extension requested, but no openssl library is found. ssl extensions are disabled.])
+                ])
+        else
+                use_openssl="no"
+        fi
+        ],[
+        use_openssl="no"
+])
+
+AM_CONDITIONAL(OPENSSL, test x$use_openssl = xyes)
+
+AC_CONFIG_FILES([Makefile \
+	src/Makefile \
+	btdht.pc])
 AC_OUTPUT
