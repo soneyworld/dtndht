@@ -4,7 +4,9 @@ h_sources = dht.h
 c_sources = dht.c
 
 if OPENSSL
-c_sources += implFunction.c 
+c_sources += implFunction.c
+AM_CFLAGS = $(OPENSSL_CFLAGS)
+AM_LDFLAGS = $(OPENSSL_LIBS)
 endif
 
 library_includedir=$(includedir)/$(GENERIC_LIBRARY_NAME)-$(GENERIC_API_VERSION)/$(GENERIC_LIBRARY_NAME)

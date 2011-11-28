@@ -72,25 +72,15 @@ AC_FUNC_REALLOC
 AC_CHECK_FUNCS([gettimeofday inet_ntoa memmove memset select socket strtol])
 
 # check for openssl
-AC_ARG_WITH(openssl,
-        AS_HELP_STRING([--with-openssl], [Build with openssl support
-                @<:@default=yes@:>@]),
-        [
-        if test "x$with_openssl" = "xyes"; then
-                PKG_CHECK_MODULES(OPENSSL, openssl, [
-                        use_openssl="yes"
-                        AC_DEFINE(HAVE_OPENSSL, [1], ["openssl library is available"])
-                        AC_SUBST(OPENSSL_CFLAGS)
-                        AC_SUBST(OPENSSL_LIBS)
-                ], [
-                        use_openssl="no"
-                        AC_MSG_WARN([openssl extension requested, but no openssl library is found. ssl extensions are disabled.])
-                ])
-        else
-                use_openssl="no"
-        fi
-        ],[
-        use_openssl="no"
+PKG_CHECK_MODULES(OPENSSL, [openssl],[
+	use_openssl="yes"
+    AC_SUBST(OPENSSL_CFLAGS)
+    AC_SUBST(OPENSSL_LIBS)
+    AC_DEFINE(HAVE_OPENSSL, [1], ["openssl library is available"])
+    AC_CHECK_HEADERS([openssl/rand.h openssl/sha.h],[], [AC_MSG_ERROR([openssl extension requested, but no header files found. ssl extensions are disabled.])]) 
+    ], [
+    use_openssl="no"
+    AC_MSG_ERROR([openssl extension requested, but no openssl library is found. ssl extensions are disabled.])
 ])
 
 AM_CONDITIONAL(OPENSSL, test x$use_openssl = xyes)
