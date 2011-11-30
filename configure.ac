@@ -10,7 +10,7 @@ dnl Initialization macros.
 dnl --------------------------------
 
 AC_PREREQ([2.68])
-AC_INIT([libbtdht], [PKG_FULL_VERSION], [lorentze@ibr.cs.tu-bs.de])
+AC_INIT([libdtndht], [PKG_FULL_VERSION], [lorentze@ibr.cs.tu-bs.de])
 AM_INIT_AUTOMAKE
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([src/dht.h])
@@ -87,5 +87,5 @@ AM_CONDITIONAL(OPENSSL, test x$use_openssl = xyes)
 
 AC_CONFIG_FILES([Makefile \
 	src/Makefile \
-	btdht.pc])
+	dtndht.pc])
 AC_OUTPUT

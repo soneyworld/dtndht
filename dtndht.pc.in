@@ -3,8 +3,8 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: libbtdht
-Description: Bittorrent DHT library (pure C)
+Name: libdtndht
+Description: DTN DHT library (pure C)
 Requires: openssl openssl-dev
 Version: @VERSION@
 Libs: -L${libdir} -l@GENERIC_LIBRARY_NAME@ @OPENSSL_LIBS@
