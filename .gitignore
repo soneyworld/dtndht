@@ -21,4 +21,4 @@ version.m4
 depcomp
 libtool
 ltmain.sh
-libbtdht-*.tar.gz
+libdtndht-*.tar.gz
