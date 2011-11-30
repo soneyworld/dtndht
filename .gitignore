@@ -13,7 +13,7 @@ Makefile.in
 config.log
 config.status
 install-sh
-btdht.pc
+dtndht.pc
 config.guess
 config.sub
 m4/
