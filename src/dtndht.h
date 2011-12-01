@@ -17,18 +17,32 @@ struct dtn_dht_context {
 	unsigned char id[20];
 };
 
+// Loading previous saved buckets for faster bootstrapping
+int dtn_dht_load_prev_conf(FILE *f);
+// Save acutal buckets to file for faster bootstrapping
+int dtn_dht_save_conf(FILE *f);
+
+// Initialize the dht
 int dtn_dht_init(struct dtn_dht_context *ctx);
-int dtn_dht_insert_node(const unsigned char *id, struct sockaddr *sa, int salen);
-int dtn_dht_ping_node(struct sockaddr *sa, int salen);
+// Destroy the dht
+int dtn_dht_uninit(void);
+
+// Asynchronously lookup for the given eid
+int dtn_dht_lookup(const unsigned char *eid, int eidlen);
+// Asynchronously lookup for the given eid and the given service
+int dtn_dht_lookup(const unsigned char *eid, int eidlen, const unsigned char *service, int serlen);
+
+// Join a dtn group with the given gid
+int dtn_dht_join_group(const unsigned char *gid, int gidlen);
+// Leave the given dtn group -> stopping the announcing
+int dtn_dht_leave_group(const unsigned char *gid, int gidlen);
+
+
+// The main loop of the dht
 int dtn_dht_periodic(const void *buf, size_t buflen,
                  const struct sockaddr *from, int fromlen,
                  time_t *tosleep, dht_callback *callback, void *closure);
-int dtn_dht_search(const unsigned char *id, int port, int af,
-               dht_callback *callback, void *closure);
-int dtn_dht_nodes(int af,
-              int *good_return, int *dubious_return, int *cached_return,
-              int *incoming_return);
-void dtn_dht_dump_tables(FILE *f);
-int dtn_dht_get_nodes(struct sockaddr_in *sin, int *num,
-                  struct sockaddr_in6 *sin6, int *num6);
-int dtn_dht_uninit(void);
+
+
+//int dtn_dht_insert_node(const unsigned char *id, struct sockaddr *sa, int salen);
+//int dtn_dht_ping_node(struct sockaddr *sa, int salen);
