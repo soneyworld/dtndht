@@ -18,6 +18,11 @@ struct dtn_dht_context {
 	int type;
 };
 
+typedef void
+dht_callback(void *closure, int event,
+             unsigned char *info_hash,
+             void *data, size_t data_len);
+
 // Loading previous saved buckets for faster bootstrapping
 int dtn_dht_load_prev_conf(struct dtn_dht_context *ctx, FILE *f);
 // Save acutal buckets to file for faster bootstrapping
