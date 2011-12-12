@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <openssl/rand.h>
 #include "dht.h"
 #include "dtndht.h"
 
@@ -15,8 +16,8 @@ int dtn_dht_initstruct(struct dtn_dht_context *ctx){
 	(*ctx).ipv4socket = -1;
 	(*ctx).ipv6socket = -1;
 	(*ctx).type = BINDBOTH;
-	//TODO generate ID
-	return 0;
+	// generate ID
+	return (RAND_bytes((*ctx).id, 20)==1);
 }
 
 
@@ -66,6 +67,7 @@ int dtn_dht_init_sockets(struct dtn_dht_context *ctx){
 	if(rc<0){
 		return rc;
 	}
+
 	struct sockaddr_in sin;
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
