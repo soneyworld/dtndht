@@ -4,13 +4,8 @@ enum dtn_dht_event{
 };
 
 enum dtn_dht_bind_type{
-	NONE=0,IPV4ONLY=1,IPV6ONLY=2,BOTH=3
+	BINDNONE=0,IPV4ONLY=1,IPV6ONLY=2,BINDBOTH=3
 };
-
-typedef void
-dtn_dht_callback(void *closure, enum dtn_dht_event event,
-             unsigned char *info_hash,
-             void *data, size_t data_len);
 
 extern FILE *dtn_dht_debug;
 
@@ -20,6 +15,7 @@ struct dtn_dht_context {
 	int ipv6socket;
 	unsigned char id[20];
 	int port;
+	int type;
 };
 
 // Loading previous saved buckets for faster bootstrapping
@@ -32,6 +28,9 @@ int dtn_dht_initstruct(struct dtn_dht_context *ctx);
 
 // Initialize the dht
 int dtn_dht_init(struct dtn_dht_context *ctx);
+
+int dtn_dht_init_sockets(struct dtn_dht_context *ctx);
+
 // Destroy the dht
 int dtn_dht_uninit(void);
 
