@@ -65,4 +65,7 @@ int dtn_dht_periodic(const void *buf, size_t buflen,
 
 //int dtn_dht_insert_node(const unsigned char *id, struct sockaddr *sa, int salen);
 //int dtn_dht_ping_node(struct sockaddr *sa, int salen);
+
+// Closes all socket of the context
+int dtn_dht_close_sockets(struct dtn_dht_context *ctx);
 #endif

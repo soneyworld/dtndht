@@ -122,3 +122,13 @@ int dtn_dht_periodic(const void *buf, size_t buflen,
 	return dht_periodic(buf,buflen,from,fromlen,tosleep,callback,closure);
 }
 
+
+int dtn_dht_close_sockets(struct dtn_dht_context *ctx){
+	if((*ctx).ipv4socket>=0){
+		close((*ctx).ipv4socket);
+	}
+	if((*ctx).ipv6socket>=0){
+		close((*ctx).ipv6socket);
+	}
+	return 0;
+}
