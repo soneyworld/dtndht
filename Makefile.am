@@ -1,5 +1,5 @@
-SUBDIRS = src
-DIST_SUBDIRS = src
+SUBDIRS = dtndht
+DIST_SUBDIRS = dtndht
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = dtndht.pc
