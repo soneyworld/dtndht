@@ -3,11 +3,6 @@
 #define DTNDHT_INCLUDED
 #include <dtndht/dht.h>
 
-
-enum dtn_dht_event{
-	NONE=0,VALUES=1,VALUES6=2,SEARCH_DONE=3,SEARCH_DONE6=4
-};
-
 enum dtn_dht_bind_type{
 	BINDNONE=0,IPV4ONLY=1,IPV6ONLY=2,BINDBOTH=3
 };
@@ -22,11 +17,6 @@ struct dtn_dht_context {
 	int port;
 	int type;
 };
-
-typedef void
-dht_callback(void *closure, int event,
-             unsigned char *info_hash,
-             void *data, size_t data_len);
 
 // Loading previous saved buckets for faster bootstrapping
 int dtn_dht_load_prev_conf(struct dtn_dht_context *ctx, FILE *f);
@@ -44,10 +34,13 @@ int dtn_dht_init_sockets(struct dtn_dht_context *ctx);
 // Destroy the dht
 int dtn_dht_uninit(void);
 
-// Asynchronously lookup for the given eid and the given service
-int dtn_dht_lookup(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen);
+// Simple DNS based bootstrapping method
+int dtn_dht_dns_bootstrap(struct dtn_dht_context *ctx);
 
-int dtn_dht_lookup_group(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen);
+// Asynchronously lookup for the given eid and the given service
+int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen);
+
+int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen);
 
 // Join a dtn group with the given gid
 int dtn_dht_join_group(const unsigned char *gid, int gidlen, const unsigned char *cltype, int cllen, int port);
@@ -64,8 +57,7 @@ int dtn_dht_deannounce_neighbour(const unsigned char *eid, int eidlen, const uns
 
 // The main loop of the dht
 int dtn_dht_periodic(const void *buf, size_t buflen,
-                 const struct sockaddr *from, int fromlen,
-                 time_t *tosleep, dht_callback *callback, void *closure);
+		const struct sockaddr *from, int fromlen, time_t *tosleep);
 
 
 //int dtn_dht_insert_node(const unsigned char *id, struct sockaddr *sa, int salen);
@@ -73,4 +65,10 @@ int dtn_dht_periodic(const void *buf, size_t buflen,
 
 // Closes all socket of the context
 int dtn_dht_close_sockets(struct dtn_dht_context *ctx);
+
+// callback functions: Must be provided by the user
+// Lookup of an eid was successful
+void dtn_dht_handle_lookup_result(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int ipversion, struct sockaddr_storage *addr, size_t addrlen);
+// Lookup of a group was successful
+void dtn_dht_handle_lookup_group_result(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int ipversion, struct sockaddr_storage *addr, size_t addrlen);
 #endif
