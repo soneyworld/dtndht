@@ -10,10 +10,10 @@ dnl Initialization macros.
 dnl --------------------------------
 
 AC_PREREQ([2.68])
-AC_INIT([libdtndht], [PKG_FULL_VERSION], [lorentze@ibr.cs.tu-bs.de])
+AC_INIT([dtndht], [PKG_FULL_VERSION], [lorentze@ibr.cs.tu-bs.de])
 AM_INIT_AUTOMAKE
 AC_CONFIG_MACRO_DIR([m4])
-AC_CONFIG_SRCDIR([src/dht.h])
+AC_CONFIG_SRCDIR([dtndht/dtndht.h])
 AC_CONFIG_HEADERS([config.h])
 LT_INIT
 
@@ -86,6 +86,6 @@ PKG_CHECK_MODULES(OPENSSL, [openssl],[
 AM_CONDITIONAL(OPENSSL, test x$use_openssl = xyes)
 
 AC_CONFIG_FILES([Makefile \
-	src/Makefile \
+	dtndht/Makefile \
 	dtndht.pc])
 AC_OUTPUT

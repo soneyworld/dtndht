@@ -1,7 +1,7 @@
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS}
 
-include_h_sources = dtndht.h
-h_sources = dht.h $(include_h_sources)
+include_h_sources = dtndht.h dht.h
+h_sources = $(include_h_sources)
 c_sources = dht.c implFunction.c dtndht.c
 
 AM_CFLAGS = $(OPENSSL_CFLAGS)

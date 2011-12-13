@@ -1,4 +1,9 @@
 
+#ifndef DTNDHT_INCLUDED
+#define DTNDHT_INCLUDED
+#include <dtndht/dht.h>
+
+
 enum dtn_dht_event{
 	NONE=0,VALUES=1,VALUES6=2,SEARCH_DONE=3,SEARCH_DONE6=4
 };
@@ -65,3 +70,7 @@ int dtn_dht_periodic(const void *buf, size_t buflen,
 
 //int dtn_dht_insert_node(const unsigned char *id, struct sockaddr *sa, int salen);
 //int dtn_dht_ping_node(struct sockaddr *sa, int salen);
+
+// Closes all socket of the context
+int dtn_dht_close_sockets(struct dtn_dht_context *ctx);
+#endif
