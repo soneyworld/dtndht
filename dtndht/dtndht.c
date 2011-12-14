@@ -249,7 +249,7 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 
 int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 		int eidlen, const unsigned char *cltype, int cllen) {
-	char key[20];
+	unsigned char key[20];
 	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
 	printf("LOOKUP: ");
 	int i;
@@ -261,17 +261,26 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 
 int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid,
 		int eidlen, const unsigned char *cltype, int cllen) {
-	char key[20];
+	unsigned char key[20];
 	dht_hash(key, 20, cltype, cllen, ":g:", 3, eid, eidlen);
 	return dtn_dht_search(ctx, key, 0);
 }
 
 int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 		int eidlen, const unsigned char *cltype, int cllen, int port) {
-	char key[20];
-	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
-	printf("ANNOUNCE: ");
+	unsigned char key[20];
 	int i;
+	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
+	printf("----------------\n");
+	for(i = 0; i<cllen;i++){
+		printf("%c",cltype[i]);
+	}
+	printf(":");
+	for(i = 0; i<eidlen;i++){
+		printf("%c",eid[i]);
+	}
+	printf("\n----------------\n");
+	printf("ANNOUNCE:\n");
 	for (i = 0; i < 20; i++)
 		printf("%02x", key[i]);
 	printf("\n");
@@ -282,7 +291,7 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx,
 		const unsigned char *eid, int eidlen, const unsigned char *cltype,
 		int cllen, int port) {
-	char key[20];
+	unsigned char key[20];
 	dht_hash(key, 20, cltype, cllen, ":n:", 3, eid, eidlen);
 	// TODO Save the announced stuff to reannounce storage
 	return dtn_dht_search(ctx, key, port);
