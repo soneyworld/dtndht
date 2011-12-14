@@ -27,7 +27,7 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 	default:
 		return;
 	}
-	dtn_dht_handle_lookup_result("test", 5, "tcp", 4, ipversion, NULL, 0);
+	dtn_dht_handle_lookup_result("dtn://test.dtn", 5, "TCP", 4, ipversion, NULL, 0, 0);
 }
 
 int dtn_dht_initstruct(struct dtn_dht_context *ctx) {

@@ -68,7 +68,7 @@ int dtn_dht_close_sockets(struct dtn_dht_context *ctx);
 
 // callback functions: Must be provided by the user
 // Lookup of an eid was successful
-void dtn_dht_handle_lookup_result(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int ipversion, struct sockaddr_storage *addr, size_t addrlen);
+void dtn_dht_handle_lookup_result(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int ipversion, struct sockaddr_storage *addr, size_t addrlen, size_t count);
 // Lookup of a group was successful
-void dtn_dht_handle_lookup_group_result(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int ipversion, struct sockaddr_storage *addr, size_t addrlen);
+void dtn_dht_handle_lookup_group_result(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int ipversion, struct sockaddr_storage *addr, size_t addrlen, size_t count);
 #endif
