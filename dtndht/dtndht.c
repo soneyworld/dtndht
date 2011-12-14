@@ -46,8 +46,8 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 		return;
 	}
 
-	dtn_dht_handle_lookup_result("dtn://test.dtn", 14, "TCP", 3, ipversion,
-			ss, sizeof(struct sockaddr_storage), count);
+	dtn_dht_handle_lookup_result("dtn://test.dtn", 14, "TCP", 3, ipversion, ss,
+			sizeof(struct sockaddr_storage), count);
 	free(ss);
 }
 
@@ -251,6 +251,11 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 		int eidlen, const unsigned char *cltype, int cllen) {
 	char key[20];
 	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
+	printf("LOOKUP: ");
+	int i;
+	for (i = 0; i < 20; i++)
+		printf("%02x", key[i]);
+	printf("\n");
 	return dtn_dht_search(ctx, key, 0);
 }
 
@@ -265,6 +270,11 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 		int eidlen, const unsigned char *cltype, int cllen, int port) {
 	char key[20];
 	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
+	printf("ANNOUNCE: ");
+	int i;
+	for (i = 0; i < 20; i++)
+		printf("%02x", key[i]);
+	printf("\n");
 	// TODO Save the announced stuff to reannounce storage
 	return dtn_dht_search(ctx, key, port);
 }
