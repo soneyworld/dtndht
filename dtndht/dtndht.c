@@ -16,18 +16,39 @@
 static void callback(void *closure, int event, unsigned char *info_hash,
 		void *data, size_t data_len) {
 	int ipversion;
-	int addr_len;
+	int addr_len, i;
+	int count = 0;
+	struct sockaddr_storage *ss;
+	struct sockaddr_in6 *ipv6;
+	struct sockaddr_in *ipv4;
 	switch (event) {
 	case DHT_EVENT_VALUES:
 		ipversion = 4;
+		count = data_len / 6;
+		ss = (struct sockaddr_storage*) malloc(
+				sizeof(struct sockaddr_storage) * count);
+
+		for (i = 0; i < count; i++) {
+			ss[i].ss_family = AF_INET;
+			cpyvaluetosocketstorage(&ss[i], data + (i * 6), AF_INET);
+		}
 		break;
 	case DHT_EVENT_VALUES6:
 		ipversion = 6;
+		count = data_len / 18;
+		ss = malloc(sizeof(struct sockaddr_storage) * count);
+		for (i = 0; i < count; i++) {
+			ss[i].ss_family = AF_INET;
+			cpyvaluetosocketstorage(&ss[i], data + (i * 18), AF_INET6);
+		}
 		break;
 	default:
 		return;
 	}
-	dtn_dht_handle_lookup_result("dtn://test.dtn", 5, "TCP", 4, ipversion, NULL, 0, 0);
+
+	dtn_dht_handle_lookup_result("dtn://test.dtn", 14, "TCP", 3, ipversion,
+			ss, sizeof(struct sockaddr_storage), count);
+	free(ss);
 }
 
 int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
@@ -240,30 +261,44 @@ int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid,
 	return dtn_dht_search(ctx, key, 0);
 }
 
-int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid, int eidlen,
-		const unsigned char *cltype, int cllen, int port) {
+int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
+		int eidlen, const unsigned char *cltype, int cllen, int port) {
 	char key[20];
 	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
 	// TODO Save the announced stuff to reannounce storage
-	return dtn_dht_search(ctx,key,port);
+	return dtn_dht_search(ctx, key, port);
 }
 
-int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx, const unsigned char *eid, int eidlen,
-		const unsigned char *cltype, int cllen, int port) {
+int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx,
+		const unsigned char *eid, int eidlen, const unsigned char *cltype,
+		int cllen, int port) {
 	char key[20];
 	dht_hash(key, 20, cltype, cllen, ":n:", 3, eid, eidlen);
 	// TODO Save the announced stuff to reannounce storage
-	return dtn_dht_search(ctx,key,port);
+	return dtn_dht_search(ctx, key, port);
 }
 
-int dtn_dht_deannounce(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port){
+int dtn_dht_deannounce(const unsigned char *eid, int eidlen,
+		const unsigned char *cltype, int cllen, int port) {
 	// TODO remove from reannounce storage
 	return 0;
 }
 
-int dtn_dht_deannounce_neighbour(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port){
+int dtn_dht_deannounce_neighbour(const unsigned char *eid, int eidlen,
+		const unsigned char *cltype, int cllen, int port) {
 	// TODO remove from reannounce storage
 	return 0;
 }
 
+int cpyvaluetosocketstorage(struct sockaddr_storage *target, const void *value,
+		int type) {
+	if (type == AF_INET) {
+		memcpy(&((struct sockaddr_in*) target)->sin_addr, value, 4);
+		memcpy(&((struct sockaddr_in*) target)->sin_port, value + 4, 2);
+	} else if (type == AF_INET6) {
+		memcpy(&((struct sockaddr_in6*) target)->sin6_addr, value, 16);
+		memcpy(&((struct sockaddr_in6*) target)->sin6_port, value + 16, 2);
+	}
+	return 0;
+}
 
