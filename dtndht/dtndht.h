@@ -48,8 +48,8 @@ int dtn_dht_join_group(const unsigned char *gid, int gidlen, const unsigned char
 int dtn_dht_leave_group(const unsigned char *gid, int gidlen, const unsigned char *cltype, int cllen, int port);
 
 // DHT Announce
-int dtn_dht_announce(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port);
-int dtn_dht_announce_neighbour(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port);
+int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port);
+int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx, const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port);
 
 // DHT Stop Announcement
 int dtn_dht_deannounce(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port);

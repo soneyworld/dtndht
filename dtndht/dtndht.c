@@ -240,3 +240,30 @@ int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid,
 	return dtn_dht_search(ctx, key, 0);
 }
 
+int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid, int eidlen,
+		const unsigned char *cltype, int cllen, int port) {
+	char key[20];
+	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
+	// TODO Save the announced stuff to reannounce storage
+	return dtn_dht_search(ctx,key,port);
+}
+
+int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx, const unsigned char *eid, int eidlen,
+		const unsigned char *cltype, int cllen, int port) {
+	char key[20];
+	dht_hash(key, 20, cltype, cllen, ":n:", 3, eid, eidlen);
+	// TODO Save the announced stuff to reannounce storage
+	return dtn_dht_search(ctx,key,port);
+}
+
+int dtn_dht_deannounce(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port){
+	// TODO remove from reannounce storage
+	return 0;
+}
+
+int dtn_dht_deannounce_neighbour(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port){
+	// TODO remove from reannounce storage
+	return 0;
+}
+
+
