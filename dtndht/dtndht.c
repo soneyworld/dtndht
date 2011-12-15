@@ -31,6 +31,27 @@ static struct dhtentry *lookupgrouptable = NULL;
 static struct dhtentry *announcetable = NULL;
 static struct dhtentry *announceneigbourtable = NULL;
 
+void cleanUpList(struct dhtentry *table, int threshold) {
+	struct dhtentry *pos = table;
+	struct dhtentry *prev = NULL;
+	while (pos) {
+		if (time() > (pos->updatetime + threshold)) {
+			if (pos->next) {
+				prev->next = pos->next;
+			} else {
+				prev->next = NULL;
+			}
+			free(pos->cl);
+			free(pos->eid);
+			free(pos);
+			pos = prev->next;
+		}else{
+			prev = pos;
+			pos = pos->next;
+		}
+	}
+}
+
 void addToList(const unsigned char *key, const unsigned char *eid, int eidlen,
 		const unsigned char *cltype, int cllen, int port,
 		struct dhtentry *table) {
@@ -423,26 +444,5 @@ int cpyvaluetosocketstorage(struct sockaddr_storage *target, const void *value,
 		memcpy(&((struct sockaddr_in6*) target)->sin6_port, value + 16, 2);
 	}
 	return 0;
-}
-
-void cleanUpList(struct dhtentry *table, int threshold) {
-	struct dhtentry *pos = table;
-	struct dhtentry *prev = NULL;
-	while (pos) {
-		if (time() > (pos->updatetime + threshold)) {
-			if (pos->next) {
-				prev->next = pos->next;
-			} else {
-				prev->next = NULL;
-			}
-			free(pos->cl);
-			free(pos->eid);
-			free(pos);
-			pos = prev->next;
-		}else{
-			prev = pos;
-			pos = pos->next;
-		}
-	}
 }
 
