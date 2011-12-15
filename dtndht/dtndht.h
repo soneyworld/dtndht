@@ -56,7 +56,7 @@ int dtn_dht_deannounce(const unsigned char *eid, int eidlen, const unsigned char
 int dtn_dht_deannounce_neighbour(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port);
 
 // The main loop of the dht
-int dtn_dht_periodic(const void *buf, size_t buflen,
+int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf, size_t buflen,
 		const struct sockaddr *from, int fromlen, time_t *tosleep);
 
 
