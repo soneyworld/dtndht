@@ -3,12 +3,97 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <openssl/rand.h>
 #include <netdb.h>
 #include "dht.h"
 #include "dtndht.h"
+
+#ifndef LOOKUP_THRESHOLD
+#define LOOKUP_THRESHOLD 1
+#endif
+
+struct dhtentry {
+	unsigned char md[20];
+	unsigned char *eid;
+	size_t eidlen;
+	unsigned char *cl;
+	size_t cllen;
+	time_t updatetime;
+	int port;
+	struct dhtentry *next;
+};
+
+static struct dhtentry *lookuptable = NULL;
+static struct dhtentry *lookupgrouptable = NULL;
+static struct dhtentry *announcetable = NULL;
+static struct dhtentry *announceneigbourtable = NULL;
+
+void addToList(const unsigned char *key, const unsigned char *eid, int eidlen,
+		const unsigned char *cltype, int cllen, int port,
+		struct dhtentry *table) {
+	struct dhtentry *newentry;
+	struct dhtentry *pos;
+	pos = table;
+	newentry = (struct dhtentry*) malloc(sizeof(struct dhtentry));
+	memcpy(newentry->md, key, 20);
+	newentry->eid = (unsigned char*) malloc(eidlen);
+	memcpy(newentry->eid, eid, eidlen);
+	newentry->eidlen = eidlen;
+	newentry->cl = (unsigned char*) malloc(cllen);
+	memcpy(newentry->cl, cltype, cllen);
+	newentry->cllen = cllen;
+	newentry->port = port;
+	newentry->next = NULL;
+	newentry->updatetime = time();
+	if (pos == NULL) {
+		pos = newentry;
+	} else {
+		while (pos->next != NULL) {
+			pos = pos->next;
+		}
+		pos->next = newentry;
+	}
+}
+
+void removeFromList(const unsigned char *eid, int eidlen,
+		const unsigned char *cltype, int cllen, int port,
+		struct dhtentry *table) {
+	struct dhtentry *pos = table;
+	struct dhtentry *prev = NULL;
+	int n;
+	while (pos) {
+		if ((strcmp(pos->eid, eid) == 0) && (strcmp(pos->cl, cltype) == 0)
+				&& pos->port == port) {
+			if (pos->next) {
+				prev->next = pos->next;
+			} else {
+				prev->next = NULL;
+			}
+			free(pos->cl);
+			free(pos->eid);
+			free(pos);
+			break;
+		}
+		prev = pos;
+		pos = pos->next;
+	}
+}
+
+struct dhtentry* getFromList(const unsigned char *key, struct dhtentry *table) {
+	struct dhtentry *result = table;
+	int n;
+	while (result) {
+		n = memcmp(key, result->md, 20);
+		if (n == 0) {
+			return result;
+		}
+		result = result->next;
+	}
+	return NULL;
+}
 
 /* The call-back function is called by the DHT whenever something
  interesting happens.  Right now, it only happens when we get a new value or
@@ -21,6 +106,7 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 	struct sockaddr_storage *ss;
 	struct sockaddr_in6 *ipv6;
 	struct sockaddr_in *ipv4;
+	struct dhtentry *entry;
 	switch (event) {
 	case DHT_EVENT_VALUES:
 		ipversion = 4;
@@ -45,9 +131,19 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 	default:
 		return;
 	}
-
-	dtn_dht_handle_lookup_result("dtn://test.dtn", 14, "TCP", 3, ipversion, ss,
-			sizeof(struct sockaddr_storage), count);
+	// Find the right informations
+	entry = getFromList(info_hash, lookuptable);
+	if (entry) {
+		dtn_dht_handle_lookup_result(entry->eid, entry->eidlen, entry->cl,
+				entry->cllen, ipversion, ss, sizeof(struct sockaddr_storage),
+				count);
+	}
+	entry = getFromList(info_hash, lookupgrouptable);
+	if (entry) {
+		dtn_dht_handle_lookup_group_result(entry->eid, entry->eidlen,
+				entry->cl, entry->cllen, ipversion, ss,
+				sizeof(struct sockaddr_storage), count);
+	}
 	free(ss);
 }
 
@@ -154,11 +250,14 @@ int dtn_dht_init_sockets(struct dtn_dht_context *ctx) {
 }
 
 int dtn_dht_uninit(void) {
+	// TODO FREE ALL LISTS
+
 	return dht_uninit();
 }
 
 int dtn_dht_periodic(const void *buf, size_t buflen,
 		const struct sockaddr *from, int fromlen, time_t *tosleep) {
+	cleanUpList(lookuptable,LOOKUP_THRESHOLD);
 	//TODO perform announcements of eid and group hashes
 	return dht_periodic(buf, buflen, from, fromlen, tosleep, callback, NULL);
 }
@@ -251,11 +350,14 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 		int eidlen, const unsigned char *cltype, int cllen) {
 	unsigned char key[20];
 	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
+#ifdef DEBUG
 	printf("LOOKUP: ");
 	int i;
 	for (i = 0; i < 20; i++)
-		printf("%02x", key[i]);
+	printf("%02x", key[i]);
 	printf("\n");
+#endif
+	addToList(key, eid, eidlen, cltype, cllen, 0, lookuptable);
 	return dtn_dht_search(ctx, key, 0);
 }
 
@@ -271,20 +373,22 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 	unsigned char key[20];
 	int i;
 	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
+#ifdef DEBUG
 	printf("----------------\n");
-	for(i = 0; i<cllen;i++){
+	for(i = 0; i<cllen;i++) {
 		printf("%c",cltype[i]);
 	}
 	printf(":");
-	for(i = 0; i<eidlen;i++){
+	for(i = 0; i<eidlen;i++) {
 		printf("%c",eid[i]);
 	}
 	printf("\n----------------\n");
 	printf("ANNOUNCE:\n");
 	for (i = 0; i < 20; i++)
-		printf("%02x", key[i]);
+	printf("%02x", key[i]);
 	printf("\n");
-	// TODO Save the announced stuff to reannounce storage
+#endif
+	addToList(key, eid, eidlen, cltype, cllen, port, announcetable);
 	return dtn_dht_search(ctx, key, port);
 }
 
@@ -293,19 +397,19 @@ int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx,
 		int cllen, int port) {
 	unsigned char key[20];
 	dht_hash(key, 20, cltype, cllen, ":n:", 3, eid, eidlen);
-	// TODO Save the announced stuff to reannounce storage
+	addToList(key, eid, eidlen, cltype, cllen, port, announceneigbourtable);
 	return dtn_dht_search(ctx, key, port);
 }
 
 int dtn_dht_deannounce(const unsigned char *eid, int eidlen,
 		const unsigned char *cltype, int cllen, int port) {
-	// TODO remove from reannounce storage
+	removeFromList(eid, eidlen, cltype, cllen, port, announcetable);
 	return 0;
 }
 
 int dtn_dht_deannounce_neighbour(const unsigned char *eid, int eidlen,
 		const unsigned char *cltype, int cllen, int port) {
-	// TODO remove from reannounce storage
+	removeFromList(eid, eidlen, cltype, cllen, port, announceneigbourtable);
 	return 0;
 }
 
@@ -319,5 +423,26 @@ int cpyvaluetosocketstorage(struct sockaddr_storage *target, const void *value,
 		memcpy(&((struct sockaddr_in6*) target)->sin6_port, value + 16, 2);
 	}
 	return 0;
+}
+
+void cleanUpList(struct dhtentry *table, int threshold) {
+	struct dhtentry *pos = table;
+	struct dhtentry *prev = NULL;
+	while (pos) {
+		if (time() > (pos->updatetime + threshold)) {
+			if (pos->next) {
+				prev->next = pos->next;
+			} else {
+				prev->next = NULL;
+			}
+			free(pos->cl);
+			free(pos->eid);
+			free(pos);
+			pos = prev->next;
+		}else{
+			prev = pos;
+			pos = pos->next;
+		}
+	}
 }
 
