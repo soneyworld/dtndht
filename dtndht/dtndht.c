@@ -16,7 +16,7 @@
 #endif
 
 #ifndef REANNOUNCE_THRESHOLD
-#define REANNOUNCE_THRESHOLD 60
+#define REANNOUNCE_THRESHOLD 10
 #endif
 
 #define DEBUG
@@ -32,18 +32,49 @@ struct dhtentry {
 	struct dhtentry *next;
 };
 
+static void printf_hex(const unsigned char *buf, int buflen) {
+	int i;
+	for (i = 0; i < buflen; i++)
+		printf("%02x", buf[i]);
+}
+
 static struct list {
 	struct dhtentry *head;
 } lookuptable, lookupgrouptable, announcetable, announceneigbourtable;
+#ifdef DEBUG
+void checkList(struct list *table) {
+	struct dhtentry *pos;
+	pos = table->head;
+	int i, size = 0;
+	while (pos != NULL) {
+		printf("%d PORT: %d\n", size, pos->port);
+		printf("%d TIME: %d\n", size, (int) pos->updatetime);
+		printf("%d EID : %s\n", size, pos->eid);
+		printf("%d CL  : %s\n", size, pos->cl);
+		printf("%d KEY : ", size);
+		printf_hex(pos->md, 20);
+		printf("\n");
+		pos = pos->next;
+		size++;
+	}
+}
+#endif
 
 void cleanUpList(struct list *table, int threshold) {
+#ifdef DEBUG
 	printf("CLEAN UP LIST\n");
+	checkList(table);
+#endif
 	struct dhtentry *pos = table->head;
 	struct dhtentry *prev = NULL;
 	while (pos != NULL) {
+#ifdef DEBUG
 		printf("--- CLEAN UP LIST \n");
+#endif
 		if (time() > (pos->updatetime + threshold)) {
+#ifdef DEBUG
 			printf("--- DOING CLEANUP \n");
+#endif
 			if (pos->next) {
 				prev->next = pos->next;
 			} else {
@@ -54,7 +85,9 @@ void cleanUpList(struct list *table, int threshold) {
 			free(pos);
 			pos = prev->next;
 		} else {
+#ifdef DEBUG
 			printf("--- SKIP CLEANUP \n");
+#endif
 			prev = pos;
 			pos = pos->next;
 		}
@@ -63,26 +96,45 @@ void cleanUpList(struct list *table, int threshold) {
 
 int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 		int threshold) {
+#ifdef DEBUG
 	checkList(table);
+#endif
 	int rc = 0, result = 0, i = 0;
 	struct dhtentry *pos = table->head;
 	while (pos != NULL) {
+#ifdef DEBUG
 		printf("REANNOUNCE %d\n", i);
+#endif
 		i++;
 		time_t acttime = time();
 		//		printf("got time: %d\n", (int) acttime);
 		time_t lastupdate = pos->updatetime;
 		//		printf("last update: %d\n", (int) lastupdate);
 		if ((lastupdate + threshold) < acttime) {
-			printf("--- REANNOUNCE\n");
+#ifdef DEBUG
+			printf("--- REANNOUNCE PORT %d\n", pos->port);
+			printf("--- REANNOUNCE KEY  ");
+			printf_hex(pos->md, 20);
+			printf("\n");
+#endif
 			rc = dtn_dht_search(ctx, pos->md, pos->port);
 			if (rc < 0) {
+#ifdef DEBUG
+				printf("--- REANNOUNCE FAILED\n");
+#endif
 				result--;
 			} else {
+#ifdef DEBUG
+				printf("--- REANNOUNCE DONE: \n");
+#endif
+				//TODO MEMORY ACCESS IS WRONG!!!!
 				pos->updatetime = time();
+
 			}
 		} else {
+#ifdef DEBUG
 			printf("--- SKIPPED REANNOUNCE\n");
+#endif
 		}
 		pos = pos->next;
 	}
@@ -91,47 +143,39 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 
 void addToList(const unsigned char *key, const unsigned char *eid, int eidlen,
 		const unsigned char *cltype, int cllen, int port, struct list *table) {
-	printf("Adding DEBUG: \n");
-	int listsize = 0;
+#ifdef DEBUG
+	printf("Adding: %s with CL %s\n", eid, cltype);
+#endif
 	struct dhtentry *newentry;
 	struct dhtentry *pos;
 	newentry = (struct dhtentry*) malloc(sizeof(struct dhtentry));
 	memcpy(newentry->md, key, 20);
-	newentry->eid = (unsigned char*) malloc(eidlen);
-	memcpy(newentry->eid, eid, eidlen);
+	newentry->eid = (unsigned char*) malloc(eidlen + 1);
+	newentry->eid[eidlen] = '\0';
+	strncpy(newentry->eid, eid, eidlen);
 	newentry->eidlen = eidlen;
-	newentry->cl = (unsigned char*) malloc(cllen);
-	memcpy(newentry->cl, cltype, cllen);
+	newentry->cl = (unsigned char*) malloc(cllen + 1);
+	strncpy(newentry->cl, cltype, cllen);
+	newentry->cl[cllen] = '\0';
 	newentry->cllen = cllen;
+#ifdef DEBUG
+	printf("   %s\n   %s\n", cltype, newentry->cl);
+#endif
 	newentry->port = port;
 	newentry->next = NULL;
 	newentry->updatetime = time();
 	if (table->head == NULL) {
 		table->head = newentry;
 	} else {
-		listsize++;
 		pos = table->head;
 		while (pos->next != NULL) {
-			listsize++;
-			printf("Adding DEBUG: (%d)\n", listsize);
 			pos = pos->next;
 		}
 		pos->next = newentry;
 	}
-	printf("Adding to list (size=%d)\n", listsize);
+#ifdef DEBUG
 	checkList(table);
-}
-
-void checkList(struct list *table) {
-	struct dhtentry *pos;
-	pos = table->head;
-	int i = 0;
-	while (pos != NULL) {
-		printf("%d PORT: %d\n", i, pos->port);
-		printf("%d TIME: %d\n", i, pos->updatetime);
-		pos = pos->next;
-		i++;
-	}
+#endif
 }
 
 void removeFromList(const unsigned char *eid, int eidlen,
@@ -347,6 +391,10 @@ int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
 	int rc = 0;
 	cleanUpList(&lookuptable, LOOKUP_THRESHOLD);
 	cleanUpList(&lookupgrouptable, LOOKUP_THRESHOLD);
+#ifdef DEBUG
+	int type = 0;
+	type = ctx->type;
+#endif
 	rc = reannounceList(ctx, &announcetable, REANNOUNCE_THRESHOLD);
 	rc = reannounceList(ctx, &announceneigbourtable, REANNOUNCE_THRESHOLD);
 	return dht_periodic(buf, buflen, from, fromlen, tosleep, callback, NULL);
@@ -418,7 +466,7 @@ int dtn_dht_dns_bootstrap(struct dtn_dht_context *ctx) {
 int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		int port) {
 	int rc = 0;
-	switch ((*ctx).type) {
+	switch (ctx->type) {
 	case BINDBOTH:
 		rc = dht_search(id, port, AF_INET, callback, NULL);
 		if (rc < 0) {
@@ -427,6 +475,9 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		return dht_search(id, port, AF_INET6, callback, NULL);
 		break;
 	case IPV4ONLY:
+#ifdef DEBUG
+	printf("SEARCHING IPV4\n");
+#endif
 		return dht_search(id, port, AF_INET, callback, NULL);
 		break;
 	case IPV6ONLY:
@@ -440,9 +491,9 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 		int eidlen, const unsigned char *cltype, int cllen) {
 	unsigned char key[20];
 	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
+	int i, rc;
 #ifdef DEBUG
 	printf("LOOKUP: ");
-	int i, rc;
 	for (i = 0; i < 20; i++)
 		printf("%02x", key[i]);
 	printf("\n");
@@ -466,6 +517,7 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 		int eidlen, const unsigned char *cltype, int cllen, int port) {
 	unsigned char key[20];
 	int i;
+	struct dhtentry *entry;
 	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
 #ifdef DEBUG
 	printf("----------------\n");
@@ -482,8 +534,14 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 		printf("%02x", key[i]);
 	printf("\n");
 #endif
-	addToList(key, eid, eidlen, cltype, cllen, port, &announcetable);
-	return dtn_dht_search(ctx, key, port);
+	entry = getFromList(key, &announcetable);
+	if (entry == NULL) {
+		addToList(key, eid, eidlen, cltype, cllen, port, &announcetable);
+		return dtn_dht_search(ctx, key, port);
+	} else {
+
+	}
+
 }
 
 int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx,
