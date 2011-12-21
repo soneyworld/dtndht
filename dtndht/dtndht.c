@@ -20,7 +20,7 @@
 #define REANNOUNCE_THRESHOLD 10
 #endif
 
-#define BOOTSTRAPPING_DOMAIN "dht.transmissionbt.com"
+#define BOOTSTRAPPING_DOMAIN "dtndht.ibr.cs.tu-bs.de"
 #define BOOTSTRAPPING_SERVICE "6881"
 
 //#define DEBUG
