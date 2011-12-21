@@ -24,7 +24,7 @@ int dtn_dht_load_prev_conf(struct dtn_dht_context *ctx, FILE *f);
 int dtn_dht_save_conf(struct dtn_dht_context *ctx, FILE *f);
 
 // Generates an ID from given string. This produces a deterministic ID.
-void dtn_dht_build_id_from_str(unsigned char *target,const char *s, int len);
+void dtn_dht_build_id_from_str(unsigned char *target,const char *s, size_t len);
 
 // Initialize struct
 int dtn_dht_initstruct(struct dtn_dht_context *ctx);
@@ -41,22 +41,22 @@ int dtn_dht_uninit(void);
 int dtn_dht_dns_bootstrap(struct dtn_dht_context *ctx);
 
 // Asynchronously lookup for the given eid and the given service
-int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen);
+int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid, size_t eidlen, const unsigned char *cltype, size_t cllen);
 
-int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen);
+int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid, size_t eidlen, const unsigned char *cltype, size_t cllen);
 
 // Join a dtn group with the given gid
-int dtn_dht_join_group(const unsigned char *gid, int gidlen, const unsigned char *cltype, int cllen, int port);
+int dtn_dht_join_group(const unsigned char *gid, size_t gidlen, const unsigned char *cltype, size_t cllen, int port);
 // Leave the given dtn group -> stopping the announcing
-int dtn_dht_leave_group(const unsigned char *gid, int gidlen, const unsigned char *cltype, int cllen, int port);
+int dtn_dht_leave_group(const unsigned char *gid, size_t gidlen, const unsigned char *cltype, size_t cllen, int port);
 
 // DHT Announce
-int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port);
-int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx, const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port);
+int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid, size_t eidlen, const unsigned char *cltype, size_t cllen, int port);
+int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx, const unsigned char *eid, size_t eidlen, const unsigned char *cltype, size_t cllen, int port);
 
 // DHT Stop Announcement
-int dtn_dht_deannounce(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port);
-int dtn_dht_deannounce_neighbour(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int port);
+int dtn_dht_deannounce(const unsigned char *eid, size_t eidlen, const unsigned char *cltype, size_t cllen, int port);
+int dtn_dht_deannounce_neighbour(const unsigned char *eid, size_t eidlen, const unsigned char *cltype, size_t cllen, int port);
 
 // The main loop of the dht
 int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf, size_t buflen,
@@ -67,9 +67,9 @@ int dtn_dht_close_sockets(struct dtn_dht_context *ctx);
 
 // callback functions: Must be provided by the user
 // Lookup of an eid was successful
-void dtn_dht_handle_lookup_result(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int ipversion, struct sockaddr_storage *addr, size_t addrlen, size_t count);
+void dtn_dht_handle_lookup_result(const unsigned char *eid, size_t eidlen, const unsigned char *cltype, size_t cllen, int ipversion, struct sockaddr_storage *addr, size_t addrlen, size_t count);
 // Lookup of a group was successful
-void dtn_dht_handle_lookup_group_result(const unsigned char *eid, int eidlen, const unsigned char *cltype, int cllen, int ipversion, struct sockaddr_storage *addr, size_t addrlen, size_t count);
+void dtn_dht_handle_lookup_group_result(const unsigned char *eid, size_t eidlen, const unsigned char *cltype, size_t cllen, int ipversion, struct sockaddr_storage *addr, size_t addrlen, size_t count);
 
 
 // functions for self implemented bootstrapping methods
