@@ -10,6 +10,7 @@
 #include <netdb.h>
 #include "dht.h"
 #include "dtndht.h"
+#include <openssl/sha.h>
 
 #ifndef LOOKUP_THRESHOLD
 #define LOOKUP_THRESHOLD 1800
@@ -19,10 +20,13 @@
 #define REANNOUNCE_THRESHOLD 10
 #endif
 
-#define DEBUG
+#define BOOTSTRAPPING_DOMAIN "dht.transmissionbt.com"
+#define BOOTSTRAPPING_SERVICE "6881"
+
+//#define DEBUG
 
 struct dhtentry {
-	unsigned char md[20];
+	unsigned char md[SHA_DIGEST_LENGTH];
 	unsigned char *eid;
 	size_t eidlen;
 	unsigned char *cl;
@@ -52,7 +56,7 @@ void checkList(struct list *table) {
 		printf("%d EID : %s\n", size, pos->eid);
 		printf("%d CL  : %s\n", size, pos->cl);
 		printf("%d KEY : ", size);
-		printf_hex(pos->md, 20);
+		printf_hex(pos->md, SHA_DIGEST_LENGTH);
 		printf("\n");
 		pos = pos->next;
 		size++;
@@ -65,28 +69,37 @@ void cleanUpList(struct list *table, int threshold) {
 	printf("CLEAN UP LIST\n");
 	checkList(table);
 #endif
-	struct dhtentry *pos = table->head;
+	struct dhtentry *head = table->head;
+	struct dhtentry *pos = head;
 	struct dhtentry *prev = NULL;
 	while (pos != NULL) {
 #ifdef DEBUG
 		printf("--- CLEAN UP LIST \n");
 #endif
-		if (time() > (pos->updatetime + threshold)) {
+		if (time(NULL) > (pos->updatetime + threshold)) {
 #ifdef DEBUG
-			printf("--- DOING CLEANUP \n");
+			printf("--- DELETE ENTRY \n");
 #endif
-			if (pos->next) {
-				prev->next = pos->next;
+			if (prev != NULL) {
+				if (pos->next) {
+					prev->next = pos->next;
+				} else {
+					prev->next = NULL;
+				}
 			} else {
-				prev->next = NULL;
+				table->head = NULL;
 			}
 			free(pos->cl);
 			free(pos->eid);
 			free(pos);
-			pos = prev->next;
+			if (prev != NULL) {
+				pos = prev->next;
+			} else {
+				pos = NULL;
+			}
 		} else {
 #ifdef DEBUG
-			printf("--- SKIP CLEANUP \n");
+			printf("--- SKIP ENTRY \n");
 #endif
 			prev = pos;
 			pos = pos->next;
@@ -106,7 +119,7 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 		printf("REANNOUNCE %d\n", i);
 #endif
 		i++;
-		time_t acttime = time();
+		time_t acttime = time(NULL);
 		//		printf("got time: %d\n", (int) acttime);
 		time_t lastupdate = pos->updatetime;
 		//		printf("last update: %d\n", (int) lastupdate);
@@ -114,8 +127,10 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 #ifdef DEBUG
 			printf("--- REANNOUNCE PORT %d\n", pos->port);
 			printf("--- REANNOUNCE KEY  ");
-			printf_hex(pos->md, 20);
+			printf_hex(pos->md, SHA_DIGEST_LENGTH);
 			printf("\n");
+			printf("--- REANNOUNCE TIME %d %d\n", (int) pos->updatetime,
+					(int) lastupdate);
 #endif
 			rc = dtn_dht_search(ctx, pos->md, pos->port);
 			if (rc < 0) {
@@ -128,7 +143,7 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 				printf("--- REANNOUNCE DONE: \n");
 #endif
 				//TODO MEMORY ACCESS IS WRONG!!!!
-				pos->updatetime = time();
+				pos->updatetime = time(NULL);
 
 			}
 		} else {
@@ -147,9 +162,9 @@ void addToList(const unsigned char *key, const unsigned char *eid, int eidlen,
 	printf("Adding: %s with CL %s\n", eid, cltype);
 #endif
 	struct dhtentry *newentry;
-	struct dhtentry *pos;
+	struct dhtentry *head = table->head;
 	newentry = (struct dhtentry*) malloc(sizeof(struct dhtentry));
-	memcpy(newentry->md, key, 20);
+	memcpy(newentry->md, key, SHA_DIGEST_LENGTH);
 	newentry->eid = (unsigned char*) malloc(eidlen + 1);
 	newentry->eid[eidlen] = '\0';
 	strncpy(newentry->eid, eid, eidlen);
@@ -162,17 +177,9 @@ void addToList(const unsigned char *key, const unsigned char *eid, int eidlen,
 	printf("   %s\n   %s\n", cltype, newentry->cl);
 #endif
 	newentry->port = port;
-	newentry->next = NULL;
-	newentry->updatetime = time();
-	if (table->head == NULL) {
-		table->head = newentry;
-	} else {
-		pos = table->head;
-		while (pos->next != NULL) {
-			pos = pos->next;
-		}
-		pos->next = newentry;
-	}
+	newentry->next = table->head;
+	newentry->updatetime = time(NULL);
+	table->head = newentry;
 #ifdef DEBUG
 	checkList(table);
 #endif
@@ -180,7 +187,9 @@ void addToList(const unsigned char *key, const unsigned char *eid, int eidlen,
 
 void removeFromList(const unsigned char *eid, int eidlen,
 		const unsigned char *cltype, int cllen, int port, struct list *table) {
+#ifdef DEBUG
 	printf("Removing from list\n");
+#endif
 	struct dhtentry *pos = table->head;
 	struct dhtentry *prev = NULL;
 	int n;
@@ -203,13 +212,17 @@ void removeFromList(const unsigned char *eid, int eidlen,
 }
 
 struct dhtentry* getFromList(const unsigned char *key, struct list *table) {
+#ifdef DEBUG
 	printf("Searching in list\n");
+#endif
 	struct dhtentry *result = table->head;
 	int n;
 	while (result) {
-		n = memcmp(key, result->md, 20);
+		n = memcmp(key, result->md, SHA_DIGEST_LENGTH);
 		if (n == 0) {
+#ifdef DEBUG
 			printf("------------------> Result found in list\n");
+#endif
 			return result;
 		}
 		result = result->next;
@@ -253,18 +266,24 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 	default:
 		return;
 	}
-	printf("Incomming information");
+#ifdef DEBUG
+	printf("Incoming information\n");
+#endif
 	// Find the right informations
 	entry = getFromList(info_hash, &lookuptable);
 	if (entry) {
-		printf("Calling event");
+#ifdef DEBUG
+		printf("Calling event\n");
+#endif
 		dtn_dht_handle_lookup_result(entry->eid, entry->eidlen, entry->cl,
 				entry->cllen, ipversion, ss, sizeof(struct sockaddr_storage),
 				count);
 	}
 	entry = getFromList(info_hash, &lookupgrouptable);
 	if (entry) {
-		printf("Calling group event");
+#ifdef DEBUG
+		printf("Calling group event\n");
+#endif
 		dtn_dht_handle_lookup_group_result(entry->eid, entry->eidlen,
 				entry->cl, entry->cllen, ipversion, ss,
 				sizeof(struct sockaddr_storage), count);
@@ -278,7 +297,7 @@ int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
 	(*ctx).ipv6socket = -1;
 	(*ctx).type = BINDBOTH;
 	// generate ID
-	return (RAND_bytes((*ctx).id, 20) == 1);
+	return (RAND_bytes((*ctx).id, SHA_DIGEST_LENGTH) == 1);
 }
 
 int dtn_dht_init(struct dtn_dht_context *ctx) {
@@ -379,9 +398,10 @@ int dtn_dht_init_sockets(struct dtn_dht_context *ctx) {
 }
 
 int dtn_dht_uninit(void) {
-	cleanUpList(&lookuptable, 0);
-	cleanUpList(&lookupgrouptable, 0);
-	// TODO FREE ALL LISTS
+	cleanUpList(&lookuptable, -1);
+	cleanUpList(&lookupgrouptable, -1);
+	cleanUpList(&announcetable, -1);
+	cleanUpList(&announceneigbourtable, -1);
 	return dht_uninit();
 }
 
@@ -391,10 +411,6 @@ int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
 	int rc = 0;
 	cleanUpList(&lookuptable, LOOKUP_THRESHOLD);
 	cleanUpList(&lookupgrouptable, LOOKUP_THRESHOLD);
-#ifdef DEBUG
-	int type = 0;
-	type = ctx->type;
-#endif
 	rc = reannounceList(ctx, &announcetable, REANNOUNCE_THRESHOLD);
 	rc = reannounceList(ctx, &announceneigbourtable, REANNOUNCE_THRESHOLD);
 	return dht_periodic(buf, buflen, from, fromlen, tosleep, callback, NULL);
@@ -435,7 +451,8 @@ int dtn_dht_dns_bootstrap(struct dtn_dht_context *ctx) {
 	hints.ai_flags = 0;
 	hints.ai_protocol = 0; /* Any protocol */
 
-	rc = getaddrinfo("dht.transmissionbt.com", "6881", &hints, &result);
+	rc = getaddrinfo(BOOTSTRAPPING_DOMAIN, BOOTSTRAPPING_SERVICE, &hints,
+			&result);
 	if (rc != 0) {
 		return rc;
 	}
@@ -476,7 +493,7 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		break;
 	case IPV4ONLY:
 #ifdef DEBUG
-	printf("SEARCHING IPV4\n");
+		printf("SEARCHING IPV4\n");
 #endif
 		return dht_search(id, port, AF_INET, callback, NULL);
 		break;
@@ -489,36 +506,45 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 
 int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 		int eidlen, const unsigned char *cltype, int cllen) {
-	unsigned char key[20];
-	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
+	unsigned char key[SHA_DIGEST_LENGTH];
+	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":", 1, eid, eidlen);
 	int i, rc;
 #ifdef DEBUG
 	printf("LOOKUP: ");
-	for (i = 0; i < 20; i++)
+	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
 		printf("%02x", key[i]);
 	printf("\n");
 #endif
 	addToList(key, eid, eidlen, cltype, cllen, 0, &lookuptable);
+#ifdef DEBUG
 	printf("LOOKUP saved\n");
+#endif
 	rc = dtn_dht_search(ctx, key, 0);
+#ifdef DEBUG
 	printf("LOOKUP DONE\n");
+#endif
 	return rc;
 }
 
 int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid,
 		int eidlen, const unsigned char *cltype, int cllen) {
-	unsigned char key[20];
-	dht_hash(key, 20, cltype, cllen, ":g:", 3, eid, eidlen);
-	addToList(key, eid, eidlen, cltype, cllen, 0, &lookupgrouptable);
+	unsigned char key[SHA_DIGEST_LENGTH];
+	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":g:", 3, eid, eidlen);
+	struct dhtentry *entry = getFromList(key, &lookupgrouptable);
+	if (entry == NULL) {
+		addToList(key, eid, eidlen, cltype, cllen, 0, &lookupgrouptable);
+	} else {
+		entry->updatetime = time(NULL);
+	}
 	return dtn_dht_search(ctx, key, 0);
 }
 
 int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 		int eidlen, const unsigned char *cltype, int cllen, int port) {
-	unsigned char key[20];
+	unsigned char key[SHA_DIGEST_LENGTH];
 	int i;
 	struct dhtentry *entry;
-	dht_hash(key, 20, cltype, cllen, ":", 1, eid, eidlen);
+	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":", 1, eid, eidlen);
 #ifdef DEBUG
 	printf("----------------\n");
 	for (i = 0; i < cllen; i++) {
@@ -530,26 +556,26 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 	}
 	printf("\n----------------\n");
 	printf("ANNOUNCE:\n");
-	for (i = 0; i < 20; i++)
+	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
 		printf("%02x", key[i]);
 	printf("\n");
 #endif
 	entry = getFromList(key, &announcetable);
 	if (entry == NULL) {
 		addToList(key, eid, eidlen, cltype, cllen, port, &announcetable);
-		return dtn_dht_search(ctx, key, port);
 	} else {
-
+		entry->updatetime = time(NULL);
 	}
-
+	return dtn_dht_search(ctx, key, port);
 }
 
 int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx,
 		const unsigned char *eid, int eidlen, const unsigned char *cltype,
 		int cllen, int port) {
-	unsigned char key[20];
-	dht_hash(key, 20, cltype, cllen, ":n:", 3, eid, eidlen);
-	addToList(key, eid, eidlen, cltype, cllen, port, &announceneigbourtable);
+	unsigned char key[SHA_DIGEST_LENGTH];
+	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":n:", 3, eid, eidlen);
+	if (getFromList(key, &announceneigbourtable) == NULL)
+		addToList(key, eid, eidlen, cltype, cllen, port, &announceneigbourtable);
 	return dtn_dht_search(ctx, key, port);
 }
 
@@ -565,6 +591,11 @@ int dtn_dht_deannounce_neighbour(const unsigned char *eid, int eidlen,
 	return 0;
 }
 
+void dtn_dht_build_id_from_str(unsigned char *target, const char *s, int len) {
+	dht_hash(target, SHA_DIGEST_LENGTH, (const unsigned char*) s, len, "", 0,
+			"", 0);
+}
+
 int cpyvaluetosocketstorage(struct sockaddr_storage *target, const void *value,
 		int type) {
 	if (type == AF_INET) {
@@ -577,3 +608,15 @@ int cpyvaluetosocketstorage(struct sockaddr_storage *target, const void *value,
 	return 0;
 }
 
+
+/**
+ * DIRECTLY WRAPPED FUNCTIONS
+ */
+
+int dtn_dht_insert_node(const unsigned char *id, struct sockaddr *sa, int salen) {
+	return dht_insert_node(id, sa, salen);
+}
+
+int dtn_dht_ping_node(struct sockaddr *sa, int salen) {
+	return dht_ping_node(sa, salen);
+}
