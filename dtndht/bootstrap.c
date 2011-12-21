@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
 	hints.ai_flags = 0;
 	hints.ai_protocol = 0; /* Any protocol */
 
-	s = getaddrinfo("dht.transmissionbt.com", "6881", &hints, &result);
+	s = getaddrinfo("dtndht.ibr.cs.tu-bs.de", "6881", &hints, &result);
 	if (s != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
 		exit(EXIT_FAILURE);
