@@ -235,8 +235,10 @@ struct dhtentry* getFromList(const unsigned char *key, struct list *table) {
 	while (result) {
 		n = memcmp(key, result->md, SHA_DIGEST_LENGTH);
 		if (n == 0) {
-#ifdef DEBUG
-			printf("------------------> Result found in list\n");
+#ifdef REPORT_HASHES
+			printf("-> Result found: ");
+			printf_hash(key);
+			printf("\n");
 #endif
 			return result;
 		}
