@@ -154,8 +154,10 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 #endif
 				result--;
 			} else {
-#ifdef DEBUG
-				printf("--- REANNOUNCE DONE: \n");
+#ifdef REPORT_HASHES
+				printf(" REANNOUNCE DONE: ");
+				printf_hash(pos->md);
+				printf("\n");
 #endif
 				//TODO MEMORY ACCESS IS WRONG!!!!
 				pos->updatetime = time(NULL);
@@ -171,8 +173,9 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 	return result;
 }
 
-void addToList(const unsigned char *key, const unsigned char *eid, size_t eidlen,
-		const unsigned char *cltype, size_t cllen, int port, struct list *table) {
+void addToList(const unsigned char *key, const unsigned char *eid,
+		size_t eidlen, const unsigned char *cltype, size_t cllen, int port,
+		struct list *table) {
 #ifdef DEBUG
 	printf("Adding: %s with CL %s\n", eid, cltype);
 #endif
