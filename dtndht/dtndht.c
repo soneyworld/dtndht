@@ -25,7 +25,7 @@
 #define BOOTSTRAPPING_DOMAIN "dtndht.ibr.cs.tu-bs.de"
 #define BOOTSTRAPPING_SERVICE "6881"
 
-#define REPORT_HASHES
+//#define REPORT_HASHES
 
 //#define DEBUG
 
