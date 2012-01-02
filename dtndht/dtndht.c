@@ -9,7 +9,7 @@
 #include <openssl/rand.h>
 #include <netdb.h>
 #include <stdint.h>
-#include "dht.h"
+//#include "dht.h"
 #include "dtndht.h"
 #include <openssl/sha.h>
 #include <netinet/in.h>
