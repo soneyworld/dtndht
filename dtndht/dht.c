@@ -1075,8 +1075,9 @@ search_step(struct search *sr, dht_callback *callback, void *closure)
         }
         j++;
     }
-
+    debugf("SEARCH STEP.\n");
     if(all_done) {
+    	debugf("SEARCH STEP ALL_DONE.\n");
         if(sr->port == 0) {
             goto done;
         } else {
