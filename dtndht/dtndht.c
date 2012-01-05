@@ -19,7 +19,7 @@
 #endif
 
 #ifndef REANNOUNCE_THRESHOLD
-#define REANNOUNCE_THRESHOLD 10
+#define REANNOUNCE_THRESHOLD 60
 #endif
 
 #define BOOTSTRAPPING_DOMAIN "dtndht.ibr.cs.tu-bs.de"
@@ -50,7 +50,7 @@ struct dhtentry {
 static void printf_hash(const unsigned char *buf) {
 	int i;
 	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
-		printf("%02x", buf[i]);
+	printf("%02x", buf[i]);
 }
 #endif
 
@@ -137,9 +137,7 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 #endif
 		i++;
 		time_t acttime = time(NULL);
-		//		printf("got time: %d\n", (int) acttime);
 		time_t lastupdate = pos->updatetime;
-		//		printf("last update: %d\n", (int) lastupdate);
 		if ((lastupdate + threshold) < acttime) {
 #ifdef DEBUG
 			printf("--- REANNOUNCE PORT %d\n", pos->port);
@@ -161,7 +159,6 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 				printf_hash(pos->md);
 				printf("\n");
 #endif
-				//TODO MEMORY ACCESS IS WRONG!!!!
 				pos->updatetime = time(NULL);
 
 			}
@@ -532,11 +529,17 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 	printf_hash(key);
 	printf("\n");
 #endif
-	addToList(key, eid, eidlen, cltype, cllen, 0, &lookuptable);
+	struct dhtentry *entry = getFromList(key, &lookuptable);
+	if (entry == NULL) {
+		addToList(key, eid, eidlen, cltype, cllen, 0, &lookuptable);
 #ifdef DEBUG
-	printf("LOOKUP saved\n");
+		printf("LOOKUP saved\n");
 #endif
-	return dtn_dht_search(ctx, key, 0);
+		return dtn_dht_search(ctx, key, 0);
+	} else {
+		entry->updatetime = time(NULL);
+	}
+	return 1;
 }
 
 int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid,
@@ -547,7 +550,7 @@ int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid,
 	printf("LOOKUP GROUP: ");
 	int i;
 	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
-		printf("%02x", key[i]);
+	printf("%02x", key[i]);
 	printf("\n");
 #endif
 	struct dhtentry *entry = getFromList(key, &lookupgrouptable);
@@ -568,16 +571,17 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 	int i;
 	printf("ANNOUNCE: ");
 	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
-		printf("%02x", key[i]);
+	printf("%02x", key[i]);
 	printf("\n");
 #endif
 	entry = getFromList(key, &announcetable);
 	if (entry == NULL) {
 		addToList(key, eid, eidlen, cltype, cllen, port, &announcetable);
+		return dtn_dht_search(ctx, key, port);
 	} else {
 		entry->updatetime = time(NULL);
 	}
-	return dtn_dht_search(ctx, key, port);
+	return 1;
 }
 
 int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx,
@@ -610,13 +614,13 @@ void dtn_dht_build_id_from_str(unsigned char *target, const char *s, size_t len)
 int cpyvaluetosocketstorage(struct sockaddr_storage *target, const void *value,
 		int type) {
 	if (type == AF_INET) {
-		struct sockaddr_in* sa_in = (struct sockaddr_in*)target;
+		struct sockaddr_in* sa_in = (struct sockaddr_in*) target;
 		sa_in->sin_port = 0;
 		memcpy(&(sa_in->sin_addr), value, 4);
 		memcpy(&(sa_in->sin_port), value + 4, 2);
 		sa_in->sin_port = ntohs(sa_in->sin_port);
 	} else if (type == AF_INET6) {
-		struct sockaddr_in6* sa_in = (struct sockaddr_in6*)target;
+		struct sockaddr_in6* sa_in = (struct sockaddr_in6*) target;
 		memcpy(&(sa_in->sin6_addr), value, 16);
 		memcpy(&(sa_in->sin6_port), value + 16, 2);
 		sa_in->sin6_port = ntohs(sa_in->sin6_port);

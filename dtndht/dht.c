@@ -1069,22 +1069,25 @@ search_step(struct search *sr, dht_callback *callback, void *closure)
         struct search_node *n = &sr->nodes[i];
         if(n->pinged >= 3)
             continue;
-        if(!n->replied) {
+/*        if(!n->replied) {
             all_done = 0;
             break;
-        }
+        }*/
         j++;
     }
-    debugf("SEARCH STEP.\n");
-    if(all_done) {
-    	debugf("SEARCH STEP ALL_DONE.\n");
+    if(j>=2) {
+    	debugf("SEARCH STEP DONE.\n");
         if(sr->port == 0) {
+        	debugf("SEARCH STEP DONE. PORT=0\n");
             goto done;
         } else {
+        	debugf("SEARCH STEP ALL_DONE->ANNOUNCE. PORT=%d\n",sr->port);
             int all_acked = 1;
             j = 0;
             for(i = 0; i < sr->numnodes && j < 8; i++) {
                 struct search_node *n = &sr->nodes[i];
+            	debugf("SEARCH STEP ANNOUNCE: pinged(%d) acked(%d) len(%d)\n",
+            			n->pinged,n->acked,n->token_len);
                 struct node *node;
                 unsigned char tid[4];
                 if(n->pinged >= 3)
@@ -1222,8 +1225,8 @@ dht_search(const unsigned char *id, int port, int af,
                 goto again;
             }
             n->pinged = 0;
-            n->token_len = 0;
-            n->replied = 0;
+//            n->token_len = 0;
+//            n->replied = 0;
             n->acked = 0;
         }
     } else {
