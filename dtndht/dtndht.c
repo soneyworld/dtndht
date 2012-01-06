@@ -442,7 +442,8 @@ int dtn_dht_close_sockets(struct dtn_dht_context *ctx) {
 	return 0;
 }
 
-int dtn_dht_dns_bootstrap(struct dtn_dht_context *ctx) {
+int dtn_dht_dns_bootstrap(struct dtn_dht_context *ctx, const char* name,
+		const char* service) {
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
 	int error, rc = 0;
@@ -466,9 +467,16 @@ int dtn_dht_dns_bootstrap(struct dtn_dht_context *ctx) {
 	hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
 	hints.ai_flags = 0;
 	hints.ai_protocol = 0; /* Any protocol */
-
-	rc = getaddrinfo(BOOTSTRAPPING_DOMAIN, BOOTSTRAPPING_SERVICE, &hints,
-			&result);
+	if (name != NULL) {
+		if (service != NULL) {
+			rc = getaddrinfo(name, service, &hints, &result);
+		} else {
+			rc = getaddrinfo(name, BOOTSTRAPPING_SERVICE, &hints, &result);
+		}
+	} else {
+		rc = getaddrinfo(BOOTSTRAPPING_DOMAIN, BOOTSTRAPPING_SERVICE, &hints,
+				&result);
+	}
 	if (rc != 0) {
 		return rc;
 	}

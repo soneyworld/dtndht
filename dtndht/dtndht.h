@@ -38,7 +38,7 @@ int dtn_dht_init_sockets(struct dtn_dht_context *ctx);
 int dtn_dht_uninit(void);
 
 // Simple DNS based bootstrapping method
-int dtn_dht_dns_bootstrap(struct dtn_dht_context *ctx);
+int dtn_dht_dns_bootstrap(struct dtn_dht_context *ctx, const char* name, const char* service);
 
 // Asynchronously lookup for the given eid and the given service
 int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid, size_t eidlen, const unsigned char *cltype, size_t cllen);
