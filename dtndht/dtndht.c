@@ -322,8 +322,7 @@ int dtn_dht_init(struct dtn_dht_context *ctx) {
 	lookupgrouptable.head = NULL;
 	announcetable.head = NULL;
 	announceneigbourtable.head = NULL;
-	return dht_init((*ctx).ipv4socket, (*ctx).ipv6socket, (*ctx).id,
-			(unsigned char*) "JC\0\0");
+	return dht_init((*ctx).ipv4socket, (*ctx).ipv6socket, (*ctx).id, NULL);
 }
 
 int dtn_dht_init_sockets(struct dtn_dht_context *ctx) {
