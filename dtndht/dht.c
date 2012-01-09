@@ -2143,7 +2143,8 @@ dht_periodic(const void *buf, size_t buflen,
         sr = searches;
         while(sr) {
             if(!sr->done) {
-                time_t tm = sr->step_time + 15 + random() % 10;
+//                time_t tm = sr->step_time + 15 + random() % 10;
+                time_t tm = sr->step_time + random() % 5;
                 if(search_time == 0 || search_time > tm)
                     search_time = tm;
             }
