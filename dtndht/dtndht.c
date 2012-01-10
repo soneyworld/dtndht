@@ -82,12 +82,12 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		int port);
 
 int dtn_dht_ready_for_work(struct dtn_dht_context *ctx) {
-	int numberOfNodes = 0;
+	int good, good6;
 	if ((*ctx).ipv4socket >= 0)
-		numberOfNodes = dht_nodes(AF_INET, NULL, NULL, NULL, NULL);
+		dht_nodes(AF_INET, &good, NULL, NULL, NULL);
 	if ((*ctx).ipv6socket >= 0)
-		numberOfNodes += dht_nodes(AF_INET6, NULL, NULL, NULL, NULL);
-	if (numberOfNodes >= 8) {
+		dht_nodes(AF_INET6, &good6, NULL, NULL, NULL);
+	if (good >= 10 || good6 >= 10) {
 		return 1;
 	} else {
 		return 0;
