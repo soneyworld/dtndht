@@ -290,16 +290,16 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 					entry->port);
 		} else {
 			entry = getFromList(info_hash, &announcetable);
-		}
-		if (entry) {
-			printf("SEARCH DONE FOR ANNOUNCE: ");
-			printf_hash(info_hash);
-			printf(" EID: %s CL: %s PORT: %d\n", entry->eid, entry->cl,
-					entry->port);
-		} else {
-			printf("SEARCH DONE FOR INFOHASH: ");
-			printf_hash(info_hash);
-			printf("\n");
+			if (entry) {
+				printf("SEARCH DONE FOR ANNOUNCE: ");
+				printf_hash(info_hash);
+				printf(" EID: %s CL: %s PORT: %d\n", entry->eid, entry->cl,
+						entry->port);
+			} else {
+				printf("SEARCH DONE FOR INFOHASH: ");
+				printf_hash(info_hash);
+				printf("\n");
+			}
 		}
 	default:
 		return;
