@@ -16,6 +16,8 @@ struct dtn_dht_context {
 	unsigned char id[20];
 	int port;
 	int type;
+	const char *bind;
+	const char *bind6;
 };
 
 // Loading previous saved buckets for faster bootstrapping

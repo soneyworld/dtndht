@@ -313,6 +313,8 @@ int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
 	(*ctx).ipv4socket = -1;
 	(*ctx).ipv6socket = -1;
 	(*ctx).type = BINDBOTH;
+	(*ctx).bind = NULL;
+	(*ctx).bind6 = NULL;
 	// generate ID
 	return (RAND_bytes((*ctx).id, SHA_DIGEST_LENGTH) == 1);
 }
@@ -376,6 +378,15 @@ int dtn_dht_init_sockets(struct dtn_dht_context *ctx) {
 	sin6.sin6_family = AF_INET6;
 
 	if ((*ctx).ipv4socket >= 0) {
+		if ((*ctx).bind != NULL) {
+			char buf[16];
+			rc = inet_pton(AF_INET, (*ctx).bind, buf);
+			if (rc == 1) {
+				memcpy(&sin.sin_addr, buf, 4);
+			} else {
+				perror("wrong bind interface: IPv4");
+			}
+		}
 		sin.sin_port = htons((*ctx).port);
 		rc = bind((*ctx).ipv4socket, (struct sockaddr*) &sin, sizeof(sin));
 		if (rc < 0) {
@@ -397,7 +408,15 @@ int dtn_dht_init_sockets(struct dtn_dht_context *ctx) {
 			/* BEP-32 mandates that we should bind this socket to one of our
 			 global IPv6 addresses.  In this function, this only
 			 happens if the user used the bind option. */
-
+			if ((*ctx).bind6 != NULL) {
+				char buf[16];
+				rc = inet_pton(AF_INET6, (*ctx).bind6, buf);
+				if (rc == 1) {
+					memcpy(&sin6.sin6_addr, buf, 16);
+				} else {
+					perror("wrong bind interface: IPv6");
+				}
+			}
 			sin6.sin6_port = htons((*ctx).port);
 			rc
 					= bind((*ctx).ipv6socket, (struct sockaddr*) &sin6,
