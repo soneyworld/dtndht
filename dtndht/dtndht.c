@@ -25,7 +25,7 @@
 #define BOOTSTRAPPING_DOMAIN "dtndht.ibr.cs.tu-bs.de"
 #define BOOTSTRAPPING_SERVICE "6881"
 
-//#define REPORT_HASHES
+#define REPORT_HASHES
 
 //#define DEBUG
 
@@ -50,7 +50,7 @@ struct dhtentry {
 static void printf_hash(const unsigned char *buf) {
 	int i;
 	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
-	printf("%02x", buf[i]);
+		printf("%02x", buf[i]);
 }
 #endif
 
@@ -280,6 +280,27 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 			cpyvaluetosocketstorage(&ss[i], data + (i * 18), AF_INET6);
 		}
 		break;
+	case DHT_EVENT_SEARCH_DONE6:
+	case DHT_EVENT_SEARCH_DONE:
+		entry = getFromList(info_hash, lookuptable);
+		if (entry) {
+			printf("SEARCH DONE FOR LOOKUP: ");
+			printf_hash(info_hash);
+			printf(" EID: %s CL: %s PORT: %d\n", entry.eid, entry.cl,
+					entry.port);
+		} else {
+			entry = getFromList(info_hash, announcetable);
+		}
+		if (entry) {
+			printf("SEARCH DONE FOR ANNOUNCE: ");
+			printf_hash(info_hash);
+			printf(" EID: %s CL: %s PORT: %d\n", entry.eid, entry.cl,
+					entry.port);
+		} else {
+			printf("SEARCH DONE FOR INFOHASH: ");
+			printf_hash(info_hash);
+			printf("\n");
+		}
 	default:
 		return;
 	}
@@ -577,7 +598,7 @@ int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid,
 	printf("LOOKUP GROUP: ");
 	int i;
 	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
-	printf("%02x", key[i]);
+		printf("%02x", key[i]);
 	printf("\n");
 #endif
 	struct dhtentry *entry = getFromList(key, &lookupgrouptable);
@@ -598,7 +619,7 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 	int i;
 	printf("ANNOUNCE: ");
 	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
-	printf("%02x", key[i]);
+		printf("%02x", key[i]);
 	printf("\n");
 #endif
 	entry = getFromList(key, &announcetable);
