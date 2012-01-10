@@ -282,20 +282,20 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 		break;
 	case DHT_EVENT_SEARCH_DONE6:
 	case DHT_EVENT_SEARCH_DONE:
-		entry = getFromList(info_hash, lookuptable);
+		entry = getFromList(info_hash, &lookuptable);
 		if (entry) {
 			printf("SEARCH DONE FOR LOOKUP: ");
 			printf_hash(info_hash);
-			printf(" EID: %s CL: %s PORT: %d\n", entry.eid, entry.cl,
-					entry.port);
+			printf(" EID: %s CL: %s PORT: %d\n", entry->eid, entry->cl,
+					entry->port);
 		} else {
-			entry = getFromList(info_hash, announcetable);
+			entry = getFromList(info_hash, &announcetable);
 		}
 		if (entry) {
 			printf("SEARCH DONE FOR ANNOUNCE: ");
 			printf_hash(info_hash);
-			printf(" EID: %s CL: %s PORT: %d\n", entry.eid, entry.cl,
-					entry.port);
+			printf(" EID: %s CL: %s PORT: %d\n", entry->eid, entry->cl,
+					entry->port);
 		} else {
 			printf("SEARCH DONE FOR INFOHASH: ");
 			printf_hash(info_hash);
