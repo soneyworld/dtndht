@@ -81,6 +81,19 @@ int cpyvaluetosocketstorage(struct sockaddr_storage *target, const void *value,
 int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		int port);
 
+int dtn_dht_ready_for_work(struct dtn_dht_context *ctx) {
+	int numberOfNodes = 0;
+	if ((*ctx).ipv4socket >= 0)
+		numberOfNodes = dht_nodes(AF_INET, NULL, NULL, NULL, NULL);
+	if ((*ctx).ipv6socket >= 0)
+		numberOfNodes += dht_nodes(AF_INET6, NULL, NULL, NULL, NULL);
+	if (numberOfNodes >= 8) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 void cleanUpList(struct list *table, int threshold) {
 #ifdef DEBUG
 	printf("CLEAN UP LIST\n");
@@ -466,8 +479,10 @@ int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
 		time_t *tosleep) {
 	cleanUpList(&lookuptable, LOOKUP_THRESHOLD);
 	cleanUpList(&lookupgrouptable, LOOKUP_THRESHOLD);
-	reannounceList(ctx, &announcetable, REANNOUNCE_THRESHOLD);
-	reannounceList(ctx, &announceneigbourtable, REANNOUNCE_THRESHOLD);
+	if (dtn_dht_ready_for_work(ctx)) {
+		reannounceList(ctx, &announcetable, REANNOUNCE_THRESHOLD);
+		reannounceList(ctx, &announceneigbourtable, REANNOUNCE_THRESHOLD);
+	}
 	return dht_periodic(buf, buflen, from, fromlen, tosleep, callback, NULL);
 }
 
@@ -569,6 +584,8 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 
 int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 		size_t eidlen, const unsigned char *cltype, size_t cllen) {
+	if (!dtn_dht_ready_for_work(ctx))
+		return 0;
 	unsigned char key[SHA_DIGEST_LENGTH];
 	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":", 1, eid, eidlen);
 #ifdef REPORT_HASHES
@@ -592,6 +609,8 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 
 int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid,
 		size_t eidlen, const unsigned char *cltype, size_t cllen) {
+	if (!dtn_dht_ready_for_work(ctx))
+		return 0;
 	unsigned char key[SHA_DIGEST_LENGTH];
 	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":g:", 3, eid, eidlen);
 #ifdef REPORT_HASHES
@@ -625,10 +644,16 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 	entry = getFromList(key, &announcetable);
 	if (entry == NULL) {
 		addToList(key, eid, eidlen, cltype, cllen, port, &announcetable);
-		return dtn_dht_search(ctx, key, port);
+		if (!dtn_dht_ready_for_work(ctx))
+			return 0;
+		else
+			return dtn_dht_search(ctx, key, port);
 	} else {
 		entry->updatetime = time(NULL);
-		return dtn_dht_search(ctx, key, port);
+		if (!dtn_dht_ready_for_work(ctx))
+			return 0;
+		else
+			return dtn_dht_search(ctx, key, port);
 	}
 	return 1;
 }
@@ -640,7 +665,10 @@ int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx,
 	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":n:", 3, eid, eidlen);
 	if (getFromList(key, &announceneigbourtable) == NULL)
 		addToList(key, eid, eidlen, cltype, cllen, port, &announceneigbourtable);
-	return dtn_dht_search(ctx, key, port);
+	if (!dtn_dht_ready_for_work(ctx))
+		return 0;
+	else
+		return dtn_dht_search(ctx, key, port);
 }
 
 int dtn_dht_deannounce(const unsigned char *eid, size_t eidlen,
