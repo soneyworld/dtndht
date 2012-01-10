@@ -564,6 +564,7 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 		return dtn_dht_search(ctx, key, 0);
 	} else {
 		entry->updatetime = time(NULL);
+		return dtn_dht_search(ctx, key, 0);
 	}
 	return 1;
 }
@@ -606,6 +607,7 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 		return dtn_dht_search(ctx, key, port);
 	} else {
 		entry->updatetime = time(NULL);
+		return dtn_dht_search(ctx, key, port);
 	}
 	return 1;
 }
