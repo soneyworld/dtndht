@@ -1069,25 +1069,21 @@ search_step(struct search *sr, dht_callback *callback, void *closure)
         struct search_node *n = &sr->nodes[i];
         if(n->pinged >= 3)
             continue;
-/*        if(!n->replied) {
+        if(!n->replied) {
             all_done = 0;
             break;
-        }*/
+        }
         j++;
     }
-    if(j>=1) {
-    	debugf("SEARCH STEP DONE.\n");
+
+    if(all_done) {
         if(sr->port == 0) {
-        	debugf("SEARCH STEP DONE. PORT=0\n");
             goto done;
         } else {
-        	debugf("SEARCH STEP ALL_DONE->ANNOUNCE. PORT=%d\n",sr->port);
             int all_acked = 1;
             j = 0;
             for(i = 0; i < sr->numnodes && j < 8; i++) {
                 struct search_node *n = &sr->nodes[i];
-            	debugf("SEARCH STEP ANNOUNCE: pinged(%d) acked(%d) len(%d)\n",
-            			n->pinged,n->acked,n->token_len);
                 struct node *node;
                 unsigned char tid[4];
                 if(n->pinged >= 3)
@@ -1215,18 +1211,17 @@ dht_search(const unsigned char *id, int port, int af,
            means that we can merge replies for both searches. */
         int i;
         sr->done = 0;
-    again:
         for(i = 0; i < sr->numnodes; i++) {
             struct search_node *n;
             n = &sr->nodes[i];
             /* Discard any doubtful nodes. */
             if(n->pinged >= 3 || n->reply_time < now.tv_sec - 7200) {
                 flush_search_node(n, sr);
-                goto again;
+                continue;
             }
             n->pinged = 0;
-//            n->token_len = 0;
-//            n->replied = 0;
+            n->token_len = 0;
+            n->replied = 0;
             n->acked = 0;
         }
     } else {
@@ -2143,8 +2138,7 @@ dht_periodic(const void *buf, size_t buflen,
         sr = searches;
         while(sr) {
             if(!sr->done) {
-//                time_t tm = sr->step_time + 15 + random() % 10;
-                time_t tm = sr->step_time + random() % 5;
+                time_t tm = sr->step_time + 15 + random() % 10;
                 if(search_time == 0 || search_time > tm)
                     search_time = tm;
             }
