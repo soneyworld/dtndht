@@ -18,6 +18,18 @@
 #define LOOKUP_THRESHOLD 1800
 #endif
 
+#ifndef BOOTSTRAPPING_SEARCH_THRESHOLD
+#define BOOTSTRAPPING_SEARCH_THRESHOLD 6
+#define BOOTSTRAPPING_SEARCH_MAX_HASHES 40
+
+int bootstrapping_hashes = 0;
+const unsigned char randomhash[20];
+#endif
+
+#ifndef DHT_READY_THRESHOLD
+#define DHT_READY_THRESHOLD 40
+#endif
+
 #ifndef REANNOUNCE_THRESHOLD
 #define REANNOUNCE_THRESHOLD 60
 #endif
@@ -25,8 +37,8 @@
 #define BOOTSTRAPPING_DOMAIN "dtndht.ibr.cs.tu-bs.de"
 #define BOOTSTRAPPING_SERVICE "6881"
 
-#define REPORT_HASHES
-
+//#define REPORT_HASHES
+#define DEBUG_SAVING
 //#define DEBUG
 
 #ifdef DEBUG
@@ -50,7 +62,7 @@ struct dhtentry {
 static void printf_hash(const unsigned char *buf) {
 	int i;
 	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
-		printf("%02x", buf[i]);
+	printf("%02x", buf[i]);
 }
 #endif
 
@@ -83,11 +95,29 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 
 int dtn_dht_ready_for_work(struct dtn_dht_context *ctx) {
 	int good, good6;
-	if ((*ctx).ipv4socket >= 0)
+#ifdef BOOTSTRAPPING_SEARCH_THRESHOLD
+	if (bootstrapping_hashes < BOOTSTRAPPING_SEARCH_MAX_HASHES)
+		dht_random_bytes(&randomhash, 20);
+#endif
+	if ((*ctx).ipv4socket >= 0) {
 		dht_nodes(AF_INET, &good, NULL, NULL, NULL);
-	if ((*ctx).ipv6socket >= 0)
+#ifdef BOOTSTRAPPING_SEARCH_THRESHOLD
+		if (good >= BOOTSTRAPPING_SEARCH_THRESHOLD && good
+				< DHT_READY_THRESHOLD) {
+			dht_search(randomhash, 0, AF_INET, NULL, NULL);
+		}
+#endif
+	}
+	if ((*ctx).ipv6socket >= 0) {
 		dht_nodes(AF_INET6, &good6, NULL, NULL, NULL);
-	if (good >= 10 || good6 >= 10) {
+#ifdef BOOTSTRAPPING_SEARCH_THRESHOLD
+		if (good6 >= BOOTSTRAPPING_SEARCH_THRESHOLD && good6
+				< DHT_READY_THRESHOLD) {
+			dht_search(randomhash, 0, AF_INET, NULL, NULL);
+		}
+#endif
+	}
+	if (good >= DHT_READY_THRESHOLD || good6 >= DHT_READY_THRESHOLD) {
 		return 1;
 	} else {
 		return 0;
@@ -293,10 +323,12 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 			cpyvaluetosocketstorage(&ss[i], data + (i * 18), AF_INET6);
 		}
 		break;
-	case DHT_EVENT_SEARCH_DONE6:
-	case DHT_EVENT_SEARCH_DONE:
+#ifdef REPORT_HASHES
+		case DHT_EVENT_SEARCH_DONE6:
+		case DHT_EVENT_SEARCH_DONE:
 		entry = getFromList(info_hash, &lookuptable);
 		if (entry) {
+
 			printf("SEARCH DONE FOR LOOKUP: ");
 			printf_hash(info_hash);
 			printf(" EID: %s CL: %s PORT: %d\n", entry->eid, entry->cl,
@@ -314,6 +346,7 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 				printf("\n");
 			}
 		}
+#endif
 	default:
 		return;
 	}
@@ -617,7 +650,7 @@ int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid,
 	printf("LOOKUP GROUP: ");
 	int i;
 	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
-		printf("%02x", key[i]);
+	printf("%02x", key[i]);
 	printf("\n");
 #endif
 	struct dhtentry *entry = getFromList(key, &lookupgrouptable);
@@ -638,7 +671,7 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 	int i;
 	printf("ANNOUNCE: ");
 	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
-		printf("%02x", key[i]);
+	printf("%02x", key[i]);
 	printf("\n");
 #endif
 	entry = getFromList(key, &announcetable);
@@ -703,6 +736,96 @@ int cpyvaluetosocketstorage(struct sockaddr_storage *target, const void *value,
 		sa_in->sin6_port = ntohs(sa_in->sin6_port);
 	}
 	return 0;
+}
+
+int dtn_dht_save_conf(struct dtn_dht_context *ctx, const char *filename) {
+	FILE *fp;
+	fp = fopen(filename, "w");
+	if (fp == NULL) {
+		perror("cannot open file to save actual nodes!");
+		return -1;
+	}
+	struct sockaddr_in sins[300];
+	struct sockaddr_in6 sins6[300];
+	char separator[20];
+	memset(separator, 0, 20);
+	int i, written, to_be_written, n, num = 300, num6 = 300;
+	n = dht_get_nodes(sins, &num, sins6, &num6);
+#ifdef DEBUG_SAVING
+	printf("Saving %d (%d + %d) nodes\n", n, num, num6);
+#endif
+	for (i = 0; i < num; i++) {
+		to_be_written = 4;
+		written = fwrite(&(sins[i].sin_addr), to_be_written, 1, fp);
+		if (written != to_be_written) {
+			perror("failed to save actual ipv4 node");
+			fclose(fp);
+			return -1;
+		}
+		to_be_written = 2;
+		written = fwrite(&(sins[i].sin_port), to_be_written, 1, fp);
+		if (written != to_be_written) {
+			perror("failed to save actual ipv4 port");
+			fclose(fp);
+			return -1;
+		}
+	}
+	to_be_written = 20;
+	written = fwrite(separator, 1, 20, fp);
+	if (written != to_be_written) {
+		perror("failed to write separator between nodes");
+		fclose(fp);
+		return -1;
+	}
+	for (i = 0; i < num6; i++) {
+		to_be_written = 16;
+		written = fwrite(&(sins6[i].sin6_addr), to_be_written, 1, fp);
+		if (written != to_be_written) {
+			perror("failed to save actual ipv6 node");
+			fclose(fp);
+			return -1;
+		}
+		to_be_written = 2;
+		written = fwrite(&(sins6[i].sin6_port), to_be_written, 1, fp);
+		if (written != to_be_written) {
+			perror("failed to save actual ipv6 port");
+			fclose(fp);
+			return -1;
+		}
+	}
+	return fclose(fp);
+}
+
+int dtn_dht_load_prev_conf(struct dtn_dht_context *ctx, const char *filename) {
+	FILE *fp;
+	fp = fopen(filename, "r");
+	if (fp == NULL) {
+		perror("cannot read the given file");
+		return -1;
+	}
+	char separator[20];
+	memset(separator, 0, 20);
+	void *inputbuf;
+	// 300 * ipv4 + separator + 300 * ipv6
+	size_t inputlen = 300 * 6 + 20 + 300 * 18;
+	inputbuf = malloc(inputlen);
+	inputlen = fread(inputbuf, 1, inputlen, fp);
+	void * psep;
+	psep = memchr(inputbuf, 0, inputlen - 19);
+	while (psep != NULL) {
+		if (memcmp(psep, separator, 20) == 0) {
+			int numberOfIPv4 = (psep - inputbuf) / 6;
+			int numberOfIPv6 = (inputlen - ((psep - inputbuf) + 20))/18;
+#ifdef DEBUG_SAVING
+			printf("Found %d ipv4 addresses\n", numberOfIPv4);
+			printf("Found %d ipv6 addresses\n", numberOfIPv6);
+#endif
+			break;
+		}
+		psep = memchr(psep + 1, 0, inputlen - 19 - (psep - inputbuf));
+	}
+	free(inputbuf);
+	return fclose(fp);
 }
 
 /**

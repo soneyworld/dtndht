@@ -21,9 +21,9 @@ struct dtn_dht_context {
 };
 
 // Loading previous saved buckets for faster bootstrapping
-int dtn_dht_load_prev_conf(struct dtn_dht_context *ctx, FILE *f);
+int dtn_dht_load_prev_conf(struct dtn_dht_context *ctx, const char *filename);
 // Save acutal buckets to file for faster bootstrapping
-int dtn_dht_save_conf(struct dtn_dht_context *ctx, FILE *f);
+int dtn_dht_save_conf(struct dtn_dht_context *ctx, const char *filename);
 
 // Generates an ID from given string. This produces a deterministic ID.
 void dtn_dht_build_id_from_str(unsigned char *target,const char *s, size_t len);
