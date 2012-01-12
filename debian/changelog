@@ -1,3 +1,10 @@
+libdtndht (0.1.2) experimental; urgency=low
+
+  * Second release with a lot of changes of the interface
+    * bootstrapping functions implemented
+    * loading good nodes from last session
+    * saving good nodes for last session
+
 libdtndht (0.1.1) experimental; urgency=low
 
   * First lib release

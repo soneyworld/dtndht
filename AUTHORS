@@ -1,3 +1,4 @@
 dht.c and dht.h has been written by Juliusz Chroboczek <jch@pps.jussieu.fr>
 
 autoconf and openssl functions were implemented by Till Lorentzen <lorentze@ibr.cs.tu-bs.de>
+All dtndht wrapper functions are implemented by Till Lorentzen <lorentze@ibr.cs.tu-bs.de>
