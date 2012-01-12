@@ -1,15 +1,21 @@
-libdtndht (0.1.2) experimental; urgency=low
+dtndht (0.1.2) experimental; urgency=low
 
   * Second release with a lot of changes of the interface
     * bootstrapping functions implemented
     * loading good nodes from last session
     * saving good nodes for last session
 
-libdtndht (0.1.1) experimental; urgency=low
+ -- Till Lorentzen <lorentze@ibr.cs.tu-bs.de>  Thu, 12 Jan 2012 17:47:41 +0100
+
+dtndht (0.1.1) experimental; urgency=low
 
   * First lib release
     * OPENSSL integrated for easier usage if OPENSSL is available
+ 
+ -- Till Lorentzen <lorentze@ibr.cs.tu-bs.de>  Wed, 30 Nov 2011 16:51:53 +0100
 
-libdtndht (0.1.0) experimental; urgency=low
+dtndht (0.1.0) experimental; urgency=low
 
   * Created versioning of the library 
+
+ -- Till Lorentzen <lorentze@ibr.cs.tu-bs.de>  Sun, 27 Nov 2011 22:12:12 +0100

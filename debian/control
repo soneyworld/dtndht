@@ -1,0 +1,23 @@
+Source: dtndht
+Priority: extra
+Maintainer: Till Lorentzen <lorentze@ibr.cs.tu-bs.de>
+Build-Depends: debhelper (>= 8.0.0), autotools-dev, libssl-dev (>= 0.9.8), cdbs (>= 0.4), pkg-config
+Standards-Version: 3.9.2
+Section: libs
+Homepage: http://www.ibr.cs.tu-bs.de/
+Vcs-Git: git://git.ibr.cs.tu-bs.de.org/libdtndht.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/dtndht.git;a=summary
+
+Package: dtndht-dev
+Section: libdevel
+Architecture: any
+Depends: dtndht1 (= ${binary:Version}), libssl-dev (>= 0.9.8)
+Description: Library and header files for DTN EID Lookups in a bittorrent DHT
+
+
+Package: dtndht1
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libssl0.9.8 (>= 0.9.8) | libssl1.0.0 (>=1.0.0)
+Description: A library for DTN EID Lookups in a bittorrent DHT
+

@@ -13,7 +13,7 @@ dht_periodic whenever any data has arrived from the network.
 All functions return -1 in case of failure, in which case errno is set, or
 a positive value in case of success.
 
-Initialisation
+Initialization
 **************
 
 * dht_init
