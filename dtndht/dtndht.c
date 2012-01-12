@@ -756,14 +756,14 @@ int dtn_dht_save_conf(struct dtn_dht_context *ctx, const char *filename) {
 #endif
 	for (i = 0; i < num; i++) {
 		to_be_written = 4;
-		written = fwrite(&(sins[i].sin_addr), to_be_written, 1, fp);
+		written = fwrite(&(sins[i].sin_addr), 1, to_be_written, fp);
 		if (written != to_be_written) {
 			perror("failed to save actual ipv4 node");
 			fclose(fp);
 			return -1;
 		}
 		to_be_written = 2;
-		written = fwrite(&(sins[i].sin_port), to_be_written, 1, fp);
+		written = fwrite(&(sins[i].sin_port), 1, to_be_written, fp);
 		if (written != to_be_written) {
 			perror("failed to save actual ipv4 port");
 			fclose(fp);
@@ -779,14 +779,14 @@ int dtn_dht_save_conf(struct dtn_dht_context *ctx, const char *filename) {
 	}
 	for (i = 0; i < num6; i++) {
 		to_be_written = 16;
-		written = fwrite(&(sins6[i].sin6_addr), to_be_written, 1, fp);
+		written = fwrite(&(sins6[i].sin6_addr), 1, to_be_written, fp);
 		if (written != to_be_written) {
 			perror("failed to save actual ipv6 node");
 			fclose(fp);
 			return -1;
 		}
 		to_be_written = 2;
-		written = fwrite(&(sins6[i].sin6_port), to_be_written, 1, fp);
+		written = fwrite(&(sins6[i].sin6_port), 1, to_be_written, fp);
 		if (written != to_be_written) {
 			perror("failed to save actual ipv6 port");
 			fclose(fp);
@@ -806,16 +806,36 @@ int dtn_dht_load_prev_conf(struct dtn_dht_context *ctx, const char *filename) {
 	char separator[20];
 	memset(separator, 0, 20);
 	void *inputbuf;
+	struct sockaddr_in in;
+	in.sin_family = AF_INET;
+	memset(in.sin_zero, 0, 8);
+	struct sockaddr_in6 in6;
+	in6.sin6_family = AF_INET6;
 	// 300 * ipv4 + separator + 300 * ipv6
 	size_t inputlen = 300 * 6 + 20 + 300 * 18;
 	inputbuf = malloc(inputlen);
+	memset(inputbuf, 1, inputlen);
 	inputlen = fread(inputbuf, 1, inputlen, fp);
 	void * psep;
 	psep = memchr(inputbuf, 0, inputlen - 19);
 	while (psep != NULL) {
 		if (memcmp(psep, separator, 20) == 0) {
+			struct sockaddr sa;
+			int salen, i;
 			int numberOfIPv4 = (psep - inputbuf) / 6;
-			int numberOfIPv6 = (inputlen - ((psep - inputbuf) + 20))/18;
+			int numberOfIPv6 = (inputlen - ((psep - inputbuf) + 20)) / 18;
+			for (i = 0; i < numberOfIPv4; i++) {
+				memcpy(&(in.sin_addr), inputbuf + 6 * i, 4);
+				memcpy(&(in.sin_port), inputbuf + 6 * i + 4, 2);
+				dht_ping_node((struct sockaddr *) &in, sizeof(in));
+			}
+			for (i = 0; i < numberOfIPv6; i++) {
+				memcpy(&(in6.sin6_addr),
+						inputbuf + 18 * i + 20 + 6 * numberOfIPv4, 16);
+				memcpy(&(in6.sin6_port),
+						inputbuf + 18 * i + 16 + 20 + 6 * numberOfIPv4, 2);
+				dht_ping_node((struct sockaddr *) &in6, sizeof(in6));
+			}
 #ifdef DEBUG_SAVING
 			printf("Found %d ipv4 addresses\n", numberOfIPv4);
 			printf("Found %d ipv6 addresses\n", numberOfIPv6);
