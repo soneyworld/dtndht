@@ -70,17 +70,23 @@ static struct list {
 	struct dhtentry *head;
 } lookuptable, lookupgrouptable, announcetable, announceneigbourtable;
 
-struct blacklist_entry {
-	struct sockaddr_storage ss;
-	int salen;
-	struct blacklist_entry *next;
-};
+static int dht_has_been_ready = 0;
 
-static struct blacklist_entry *blacklist = NULL;
+/*struct blacklist_entry {
+ struct sockaddr_storage ss;
+ int salen;
+ struct blacklist_entry *next;
+ };
+ static struct blacklist_entry *blacklist = NULL;
+ static long numberOfBlacklistedNodes = 0;
+ struct blacklisted_id {
+ unsigned char md[SHA_DIGEST_LENGTH];
+ struct blacklisted_id *next;
+ };
+ static struct blacklisted_id *idblacklist = NULL;*/
 
-static void blacklist_callback(void *closure, int event,
-		unsigned char *info_hash, void *data, size_t data_len,
-		const struct sockaddr *from, int fromlen);
+static void callback(void *closure, int event, unsigned char *info_hash,
+		void *data, size_t data_len, const struct sockaddr *from, int fromlen);
 
 #ifdef DEBUG
 void checkList(struct list *table) {
@@ -108,16 +114,26 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 
 int dtn_dht_ready_for_work(struct dtn_dht_context *ctx) {
 	int good, good6;
+
 #ifdef BOOTSTRAPPING_SEARCH_THRESHOLD
-	if (bootstrapping_hashes < BOOTSTRAPPING_SEARCH_MAX_HASHES)
-		dht_random_bytes(&randomhash, 20);
+	if (!dht_has_been_ready) {
+		if (bootstrapping_hashes < BOOTSTRAPPING_SEARCH_MAX_HASHES) {
+			dht_random_bytes(&randomhash, 20);
+			/*		struct blacklisted_id * bid = malloc(sizeof(struct blacklisted_id));
+			 memcpy(bid->md, randomhash, 20);
+			 if (idblacklist) {
+			 bid->next = idblacklist;
+			 }
+			 idblacklist = bid;*/
+		}
+	}
 #endif
 	if ((*ctx).ipv4socket >= 0) {
 		dht_nodes(AF_INET, &good, NULL, NULL, NULL);
 #ifdef BOOTSTRAPPING_SEARCH_THRESHOLD
 		if (good >= BOOTSTRAPPING_SEARCH_THRESHOLD && good
 				< DHT_READY_THRESHOLD) {
-			dht_search(randomhash, 0, AF_INET, blacklist_callback, NULL);
+			dht_search(randomhash, 0, AF_INET, NULL, NULL);
 		}
 #endif
 	}
@@ -126,7 +142,7 @@ int dtn_dht_ready_for_work(struct dtn_dht_context *ctx) {
 #ifdef BOOTSTRAPPING_SEARCH_THRESHOLD
 		if (good6 >= BOOTSTRAPPING_SEARCH_THRESHOLD && good6
 				< DHT_READY_THRESHOLD) {
-			dht_search(randomhash, 0, AF_INET, blacklist_callback, NULL);
+			dht_search(randomhash, 0, AF_INET, NULL, NULL);
 		}
 #endif
 	}
@@ -305,6 +321,20 @@ struct dhtentry* getFromList(const unsigned char *key, struct list *table) {
 	return NULL;
 }
 
+/*static void blacklist_node(const struct sockaddr *from, int fromlen) {
+ if (!dht_blacklisted(from, fromlen)) {
+ struct blacklist_entry * entry = malloc(sizeof(struct blacklist_entry));
+ memcpy(&entry->ss, from, fromlen);
+ entry->salen = fromlen;
+ if (blacklist) {
+ entry->next = blacklist;
+ }
+ blacklist = entry;
+ numberOfBlacklistedNodes++;
+ printf("blacklisting node %ld\n", numberOfBlacklistedNodes);
+ }
+ }*/
+
 /* The call-back function is called by the DHT whenever something
  interesting happens.  Right now, it only happens when we get a new value or
  when a search completes, but this may be extended in future versions. */
@@ -385,20 +415,16 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 				entry->cl, entry->cllen, ipversion, ss,
 				sizeof(struct sockaddr_storage), count);
 	}
+	/*	struct blacklisted_id *bid;
+	 bid = idblacklist;
+	 while (bid) {
+	 if (memcmp(bid->md, info_hash, 20) == 0) {
+	 blacklist_node(from, fromlen);
+	 break;
+	 }
+	 bid = bid->next;
+	 }*/
 	free(ss);
-}
-
-/* The call-back function is called by the DHT whenever a non existing key has been asked for*/
-static void blacklist_callback(void *closure, int event,
-		unsigned char *info_hash, void *data, size_t data_len,
-		const struct sockaddr *from, int fromlen) {
-	struct blacklist_entry * entry = malloc(sizeof(struct blacklist_entry));
-	memcpy(&entry->ss, from, fromlen);
-	entry->salen = fromlen;
-	if(blacklist){
-		entry->next = blacklist;
-	}
-	blacklist = entry;
 }
 
 int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
@@ -887,12 +913,13 @@ int dtn_dht_ping_node(struct sockaddr *sa, int salen) {
 }
 
 int dht_blacklisted(const struct sockaddr *sa, int salen) {
-	struct blacklist_entry* entry;
-	entry = blacklist;
-	while (entry) {
-		if (memcmp(&(entry->ss), sa, salen) == 0)
-			return 1;
-		entry = entry->next;
-	}
+	/*	struct blacklist_entry* entry;
+	 entry = blacklist;
+	 while (entry) {
+	 if (memcmp(&(entry->ss), sa, salen) == 0) {
+	 return 1;
+	 }
+	 entry = entry->next;
+	 }*/
 	return 0;
 }
