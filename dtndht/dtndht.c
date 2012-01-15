@@ -23,7 +23,6 @@
 #define BOOTSTRAPPING_SEARCH_MAX_HASHES 40
 
 int bootstrapping_hashes = 0;
-const unsigned char randomhash[20];
 #endif
 
 #ifndef DHT_READY_THRESHOLD
@@ -113,12 +112,11 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		int port);
 
 int dtn_dht_ready_for_work(struct dtn_dht_context *ctx) {
-	int good, good6;
-
-#ifdef BOOTSTRAPPING_SEARCH_THRESHOLD
+	int good, good6, rc;
+	rc = 0;
 	if (!dht_has_been_ready) {
 		if (bootstrapping_hashes < BOOTSTRAPPING_SEARCH_MAX_HASHES) {
-			dht_random_bytes(&randomhash, 20);
+
 			/*		struct blacklisted_id * bid = malloc(sizeof(struct blacklisted_id));
 			 memcpy(bid->md, randomhash, 20);
 			 if (idblacklist) {
@@ -126,30 +124,39 @@ int dtn_dht_ready_for_work(struct dtn_dht_context *ctx) {
 			 }
 			 idblacklist = bid;*/
 		}
+	} else {
+		rc = 1;
 	}
-#endif
 	if ((*ctx).ipv4socket >= 0) {
 		dht_nodes(AF_INET, &good, NULL, NULL, NULL);
-#ifdef BOOTSTRAPPING_SEARCH_THRESHOLD
 		if (good >= BOOTSTRAPPING_SEARCH_THRESHOLD && good
 				< DHT_READY_THRESHOLD) {
-			dht_search(randomhash, 0, AF_INET, NULL, NULL);
+			rc = 2;
 		}
-#endif
 	}
 	if ((*ctx).ipv6socket >= 0) {
 		dht_nodes(AF_INET6, &good6, NULL, NULL, NULL);
-#ifdef BOOTSTRAPPING_SEARCH_THRESHOLD
 		if (good6 >= BOOTSTRAPPING_SEARCH_THRESHOLD && good6
 				< DHT_READY_THRESHOLD) {
-			dht_search(randomhash, 0, AF_INET, NULL, NULL);
+			rc = 2;
 		}
-#endif
 	}
 	if (good >= DHT_READY_THRESHOLD || good6 >= DHT_READY_THRESHOLD) {
-		return 1;
+		dht_has_been_ready = 1;
+		return 3;
 	} else {
-		return 0;
+		return rc;
+	}
+}
+
+void dtn_dht_start_random_lookup(struct dtn_dht_context *ctx) {
+	unsigned char randomhash[20];
+	dht_random_bytes(&randomhash, 20);
+	if ((*ctx).ipv4socket >= 0) {
+		dht_search(randomhash, 0, AF_INET, callback, NULL);
+	}
+	if ((*ctx).ipv6socket >= 0) {
+		dht_search(randomhash, 0, AF_INET, callback, NULL);
 	}
 }
 
