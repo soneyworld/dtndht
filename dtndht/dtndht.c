@@ -38,7 +38,7 @@ const unsigned char randomhash[20];
 #define BOOTSTRAPPING_SERVICE "6881"
 
 //#define REPORT_HASHES
-#define DEBUG_SAVING
+//#define DEBUG_SAVING
 //#define DEBUG
 
 #ifdef DEBUG
@@ -296,7 +296,7 @@ struct dhtentry* getFromList(const unsigned char *key, struct list *table) {
  interesting happens.  Right now, it only happens when we get a new value or
  when a search completes, but this may be extended in future versions. */
 static void callback(void *closure, int event, unsigned char *info_hash,
-		void *data, size_t data_len) {
+		void *data, size_t data_len, const struct sockaddr *from, int fromlen) {
 	int ipversion;
 	int i;
 	int count = 0;
@@ -858,4 +858,8 @@ int dtn_dht_insert_node(const unsigned char *id, struct sockaddr *sa, int salen)
 
 int dtn_dht_ping_node(struct sockaddr *sa, int salen) {
 	return dht_ping_node(sa, salen);
+}
+
+int dht_blacklisted(const struct sockaddr *sa, int salen) {
+	return 0;
 }

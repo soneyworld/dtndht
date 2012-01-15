@@ -19,10 +19,6 @@
 
 /* Functions called by the DHT. */
 
-int dht_blacklisted(const struct sockaddr *sa, int salen) {
-	return 0;
-}
-
 void dht_hash(void *hash_return, int hash_size, const void *v1, int len1,
 		const void *v2, int len2, const void *v3, int len3) {
 	static SHA_CTX ctx;

@@ -1135,7 +1135,7 @@ search_step(struct search *sr, dht_callback *callback, void *closure)
         (*callback)(closure,
                     sr->af == AF_INET ?
                     DHT_EVENT_SEARCH_DONE : DHT_EVENT_SEARCH_DONE6,
-                    sr->id, NULL, 0);
+                    sr->id, NULL, 0, NULL, 0);
     sr->step_time = now.tv_sec;
 }
 
@@ -2005,11 +2005,11 @@ dht_periodic(const void *buf, size_t buflen,
                         if(callback) {
                             if(values_len > 0)
                                 (*callback)(closure, DHT_EVENT_VALUES, sr->id,
-                                            (void*)values, values_len);
+                                            (void*)values, values_len, from, fromlen);
 
                             if(values6_len > 0)
                                 (*callback)(closure, DHT_EVENT_VALUES6, sr->id,
-                                            (void*)values6, values6_len);
+                                            (void*)values6, values6_len, from, fromlen);
                         }
                     }
                 }
