@@ -69,6 +69,19 @@ static void printf_hash(const unsigned char *buf) {
 static struct list {
 	struct dhtentry *head;
 } lookuptable, lookupgrouptable, announcetable, announceneigbourtable;
+
+struct blacklist_entry {
+	struct sockaddr_storage ss;
+	int salen;
+	struct blacklist_entry *next;
+};
+
+static struct blacklist_entry *blacklist = NULL;
+
+static void blacklist_callback(void *closure, int event,
+		unsigned char *info_hash, void *data, size_t data_len,
+		const struct sockaddr *from, int fromlen);
+
 #ifdef DEBUG
 void checkList(struct list *table) {
 	struct dhtentry *pos;
@@ -104,7 +117,7 @@ int dtn_dht_ready_for_work(struct dtn_dht_context *ctx) {
 #ifdef BOOTSTRAPPING_SEARCH_THRESHOLD
 		if (good >= BOOTSTRAPPING_SEARCH_THRESHOLD && good
 				< DHT_READY_THRESHOLD) {
-			dht_search(randomhash, 0, AF_INET, NULL, NULL);
+			dht_search(randomhash, 0, AF_INET, blacklist_callback, NULL);
 		}
 #endif
 	}
@@ -113,7 +126,7 @@ int dtn_dht_ready_for_work(struct dtn_dht_context *ctx) {
 #ifdef BOOTSTRAPPING_SEARCH_THRESHOLD
 		if (good6 >= BOOTSTRAPPING_SEARCH_THRESHOLD && good6
 				< DHT_READY_THRESHOLD) {
-			dht_search(randomhash, 0, AF_INET, NULL, NULL);
+			dht_search(randomhash, 0, AF_INET, blacklist_callback, NULL);
 		}
 #endif
 	}
@@ -373,6 +386,19 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 				sizeof(struct sockaddr_storage), count);
 	}
 	free(ss);
+}
+
+/* The call-back function is called by the DHT whenever a non existing key has been asked for*/
+static void blacklist_callback(void *closure, int event,
+		unsigned char *info_hash, void *data, size_t data_len,
+		const struct sockaddr *from, int fromlen) {
+	struct blacklist_entry * entry = malloc(sizeof(struct blacklist_entry));
+	memcpy(&entry->ss, from, fromlen);
+	entry->salen = fromlen;
+	if(blacklist){
+		entry->next = blacklist;
+	}
+	blacklist = entry;
 }
 
 int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
@@ -861,5 +887,12 @@ int dtn_dht_ping_node(struct sockaddr *sa, int salen) {
 }
 
 int dht_blacklisted(const struct sockaddr *sa, int salen) {
+	struct blacklist_entry* entry;
+	entry = blacklist;
+	while (entry) {
+		if (memcmp(&(entry->ss), sa, salen) == 0)
+			return 1;
+		entry = entry->next;
+	}
 	return 0;
 }
