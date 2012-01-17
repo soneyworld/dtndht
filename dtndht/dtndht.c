@@ -917,6 +917,6 @@ int dtn_dht_ping_node(struct sockaddr *sa, int salen) {
 }
 
 int dht_blacklisted(const struct sockaddr *sa, int salen) {
-	return blacklist_blacklisted(sa, salen);
+//	return blacklist_blacklisted(sa, salen);
 	return 0;
 }
