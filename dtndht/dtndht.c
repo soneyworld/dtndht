@@ -147,6 +147,8 @@ void dtn_dht_start_random_lookup(struct dtn_dht_context *ctx) {
 	memcpy(bid->md, randomhash, 20);
 	if (idblacklist) {
 		bid->next = idblacklist;
+	}else{
+		bid->next = NULL;
 	}
 	idblacklist = bid;
 	if ((*ctx).ipv4socket >= 0) {
