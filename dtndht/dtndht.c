@@ -11,6 +11,7 @@
 #include <stdint.h>
 //#include "dht.h"
 #include "dtndht.h"
+#include "blacklist.h"
 #include <openssl/sha.h>
 #include <netinet/in.h>
 
@@ -19,7 +20,7 @@
 #endif
 
 #ifndef BOOTSTRAPPING_SEARCH_THRESHOLD
-#define BOOTSTRAPPING_SEARCH_THRESHOLD 6
+#define BOOTSTRAPPING_SEARCH_THRESHOLD 8
 #define BOOTSTRAPPING_SEARCH_MAX_HASHES 40
 
 int bootstrapping_hashes = 0;
@@ -30,7 +31,7 @@ int bootstrapping_hashes = 0;
 #endif
 
 #ifndef REANNOUNCE_THRESHOLD
-#define REANNOUNCE_THRESHOLD 60
+#define REANNOUNCE_THRESHOLD 180
 #endif
 
 #define BOOTSTRAPPING_DOMAIN "dtndht.ibr.cs.tu-bs.de"
@@ -77,12 +78,12 @@ static int dht_has_been_ready = 0;
  struct blacklist_entry *next;
  };
  static struct blacklist_entry *blacklist = NULL;
- static long numberOfBlacklistedNodes = 0;
- struct blacklisted_id {
- unsigned char md[SHA_DIGEST_LENGTH];
- struct blacklisted_id *next;
- };
- static struct blacklisted_id *idblacklist = NULL;*/
+ static long numberOfBlacklistedNodes = 0;*/
+struct blacklisted_id {
+	unsigned char md[SHA_DIGEST_LENGTH];
+	struct blacklisted_id *next;
+};
+static struct blacklisted_id *idblacklist = NULL;
 
 static void callback(void *closure, int event, unsigned char *info_hash,
 		void *data, size_t data_len, const struct sockaddr *from, int fromlen);
@@ -112,19 +113,9 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		int port);
 
 int dtn_dht_ready_for_work(struct dtn_dht_context *ctx) {
-	int good, good6, rc;
+	int good = 0, good6 = 0, rc;
 	rc = 0;
-	if (!dht_has_been_ready) {
-		if (bootstrapping_hashes < BOOTSTRAPPING_SEARCH_MAX_HASHES) {
-
-			/*		struct blacklisted_id * bid = malloc(sizeof(struct blacklisted_id));
-			 memcpy(bid->md, randomhash, 20);
-			 if (idblacklist) {
-			 bid->next = idblacklist;
-			 }
-			 idblacklist = bid;*/
-		}
-	} else {
+	if (dht_has_been_ready > 0) {
 		rc = 1;
 	}
 	if ((*ctx).ipv4socket >= 0) {
@@ -152,11 +143,17 @@ int dtn_dht_ready_for_work(struct dtn_dht_context *ctx) {
 void dtn_dht_start_random_lookup(struct dtn_dht_context *ctx) {
 	unsigned char randomhash[20];
 	dht_random_bytes(&randomhash, 20);
+	struct blacklisted_id * bid = malloc(sizeof(struct blacklisted_id));
+	memcpy(bid->md, randomhash, 20);
+	if (idblacklist) {
+		bid->next = idblacklist;
+	}
+	idblacklist = bid;
 	if ((*ctx).ipv4socket >= 0) {
 		dht_search(randomhash, 0, AF_INET, callback, NULL);
 	}
 	if ((*ctx).ipv6socket >= 0) {
-		dht_search(randomhash, 0, AF_INET, callback, NULL);
+		dht_search(randomhash, 0, AF_INET6, callback, NULL);
 	}
 }
 
@@ -422,15 +419,15 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 				entry->cl, entry->cllen, ipversion, ss,
 				sizeof(struct sockaddr_storage), count);
 	}
-	/*	struct blacklisted_id *bid;
-	 bid = idblacklist;
-	 while (bid) {
-	 if (memcmp(bid->md, info_hash, 20) == 0) {
-	 blacklist_node(from, fromlen);
-	 break;
-	 }
-	 bid = bid->next;
-	 }*/
+	struct blacklisted_id *bid;
+	bid = idblacklist;
+	while (bid) {
+		if (memcmp(bid->md, info_hash, 20) == 0) {
+			blacklist_blacklist_node(from, fromlen);
+			break;
+		}
+		bid = bid->next;
+	}
 	free(ss);
 }
 
@@ -920,13 +917,6 @@ int dtn_dht_ping_node(struct sockaddr *sa, int salen) {
 }
 
 int dht_blacklisted(const struct sockaddr *sa, int salen) {
-	/*	struct blacklist_entry* entry;
-	 entry = blacklist;
-	 while (entry) {
-	 if (memcmp(&(entry->ss), sa, salen) == 0) {
-	 return 1;
-	 }
-	 entry = entry->next;
-	 }*/
+	return blacklist_blacklisted(sa, salen);
 	return 0;
 }

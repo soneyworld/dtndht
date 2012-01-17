@@ -1,8 +1,8 @@
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS}
 
 include_h_sources = dtndht.h dht.h
-h_sources = $(include_h_sources)
-c_sources = dht.c implFunction.c dtndht.c
+h_sources = $(include_h_sources) blacklist.h
+c_sources = dht.c implFunction.c dtndht.c blacklist.c
 
 AM_CFLAGS = $(OPENSSL_CFLAGS)
 AM_LDFLAGS = $(OPENSSL_LIBS)
