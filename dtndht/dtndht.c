@@ -425,7 +425,7 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 	bid = idblacklist;
 	while (bid) {
 		if (memcmp(bid->md, info_hash, 20) == 0) {
-			blacklist_blacklist_node(from, fromlen);
+			blacklist_blacklist_node(from, info_hash);
 			break;
 		}
 		bid = bid->next;
@@ -919,6 +919,6 @@ int dtn_dht_ping_node(struct sockaddr *sa, int salen) {
 }
 
 int dht_blacklisted(const struct sockaddr *sa, int salen) {
-//	return blacklist_blacklisted(sa, salen);
+	return blacklist_blacklisted(sa, salen);
 	return 0;
 }
