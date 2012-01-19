@@ -25,8 +25,7 @@ int dtn_dht_save_conf(struct dtn_dht_context *ctx, const char *filename);
 
 // Generates an ID from given string. This produces a deterministic ID.
 void
-		dtn_dht_build_id_from_str(unsigned char *target, const char *s,
-				size_t len);
+dtn_dht_build_id_from_str(unsigned char *target, const char *s, size_t len);
 
 // Initialize struct
 int dtn_dht_initstruct(struct dtn_dht_context *ctx);
@@ -85,6 +84,9 @@ int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
 // Closes all socket of the context
 int dtn_dht_close_sockets(struct dtn_dht_context *ctx);
 
+// If blacklist is enabled (default) the number of blocked addresses is returned
+unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return, unsigned int *ipv6_return);
+
 // callback functions: Must be provided by the user
 // Lookup of an eid was successful
 void dtn_dht_handle_lookup_result(const unsigned char *eid, size_t eidlen,
@@ -100,8 +102,7 @@ void dtn_dht_handle_lookup_group_result(const unsigned char *eid,
 // inserting a known dht node (use this only, if you know the node.
 // Should be used carefully)
 int
-		dtn_dht_insert_node(const unsigned char *id, struct sockaddr *sa,
-				int salen);
+dtn_dht_insert_node(const unsigned char *id, struct sockaddr *sa, int salen);
 // pinging a possible dht node (normal way to add a possible dht node
 // method is better/softer than inserting a node and should be used)
 int dtn_dht_ping_node(struct sockaddr *sa, int salen);

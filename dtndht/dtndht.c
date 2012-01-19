@@ -147,7 +147,7 @@ void dtn_dht_start_random_lookup(struct dtn_dht_context *ctx) {
 	memcpy(bid->md, randomhash, 20);
 	if (idblacklist) {
 		bid->next = idblacklist;
-	}else{
+	} else {
 		bid->next = NULL;
 	}
 	idblacklist = bid;
@@ -919,6 +919,11 @@ int dtn_dht_ping_node(struct sockaddr *sa, int salen) {
 }
 
 int dht_blacklisted(const struct sockaddr *sa, int salen) {
-	return blacklist_blacklisted(sa, salen);
+	return blacklist_blacklisted(sa);
 	return 0;
+}
+
+unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return,
+		unsigned int *ipv6_return) {
+	return blacklist_size(ipv4_return, ipv6_return);
 }

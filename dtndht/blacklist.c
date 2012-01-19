@@ -18,7 +18,15 @@ struct blacklist_leaf {
 };
 static struct blacklist_entry *IPv4_blacklist = NULL;
 static struct blacklist_entry *IPv6_blacklist = NULL;
-static unsigned long number_of_entries = 0l;
+static unsigned int number_of_entries_ipv4 = 0;
+static unsigned int number_of_entries_ipv6 = 0;
+
+unsigned int blacklist_size(unsigned int *ipv4_return,
+		unsigned int *ipv6_return) {
+	*ipv4_return = number_of_entries_ipv4;
+	*ipv6_return = number_of_entries_ipv6;
+	return number_of_entries_ipv4 + number_of_entries_ipv6;
+}
 
 struct blacklist_entry * create_new_entry(unsigned char level) {
 	unsigned int i;
@@ -35,11 +43,10 @@ struct blacklist_leaf * create_new_leaf(u_int16_t port, char * md) {
 	struct blacklist_leaf *leaf = malloc(sizeof(struct blacklist_leaf));
 	leaf->port = ntohs(port);
 	memcpy(leaf->md, md, 20);
-	printf("creating leaf with port: %d\n", leaf->port);
+	//	printf("creating leaf with port: %d\n", leaf->port);
 	return leaf;
 }
 char *get_ip_str(const struct sockaddr *sa, char *s, size_t maxlen);
-void printf_blacklist();
 void printf_addr(const struct sockaddr *sa) {
 	char str[INET6_ADDRSTRLEN];
 	get_ip_str(sa, str, INET6_ADDRSTRLEN);
@@ -54,8 +61,8 @@ void blacklist_blacklist_node(const struct sockaddr *sa, unsigned char * md) {
 	u_int16_t port = 0;
 	unsigned char addr[16];
 	unsigned char pos = 0;
-	printf("BLACKLIST ");
-	printf_addr(sa);
+	//	printf("BLACKLIST ");
+	//	printf_addr(sa);
 	switch (sa->sa_family) {
 	case AF_INET:
 		maxlevel = 4;
@@ -66,7 +73,7 @@ void blacklist_blacklist_node(const struct sockaddr *sa, unsigned char * md) {
 		prev = IPv4_blacklist;
 		memcpy(addr, &(ip4addr->sin_addr.s_addr), maxlevel);
 		port = ip4addr->sin_port;
-		printf(" Port %d", ntohs(ip4addr->sin_port));
+		//		printf(" Port %d", ntohs(ip4addr->sin_port));
 		break;
 	case AF_INET6:
 		maxlevel = 16;
@@ -77,26 +84,36 @@ void blacklist_blacklist_node(const struct sockaddr *sa, unsigned char * md) {
 		}
 		prev = IPv6_blacklist;
 		port = ip6addr->sin6_port;
-		printf(" Port %d", ntohs(ip6addr->sin6_port));
+		//		printf(" Port %d", ntohs(ip6addr->sin6_port));
 		break;
 	default:
 		return;
 	}
-	printf("\n");
-	for (i = 0; i <= maxlevel; i++) {
+	//	printf("\n");
+	for (i = 1; i <= maxlevel; i++) {
 		if (i < maxlevel) {
-			if (prev->children[addr[i]] == NULL) {
-				prev->children[addr[i]] = create_new_entry(i + 1);
+			if (prev->children[addr[i - 1]] == NULL) {
+				prev->children[addr[i - 1]] = create_new_entry(i + 1);
 			}
 		} else {
-			prev->children[addr[i]] = create_new_leaf(port, md);
+			if (prev->children[addr[i - 1]] == NULL) {
+				switch (sa->sa_family) {
+					case AF_INET:
+						number_of_entries_ipv4++;
+						break;
+					case AF_INET6:
+						number_of_entries_ipv6++;
+						break;
+				}
+			}
+			prev->children[addr[i - 1]] = create_new_leaf(port, md);
 		}
-		prev = prev->children[addr[i]];
+		prev = prev->children[addr[i - 1]];
 	}
-	printf_blacklist();
+	//	printf_blacklist();
 }
 
-int blacklist_blacklisted(const struct sockaddr *sa, int salen) {
+int blacklist_blacklisted(const struct sockaddr *sa) {
 	//printf_blacklist();
 	struct sockaddr_in * ip4addr;
 	struct sockaddr_in6 * ip6addr;
@@ -117,15 +134,20 @@ int blacklist_blacklisted(const struct sockaddr *sa, int salen) {
 			} else {
 				if (i == maxlevel - 1) {
 					leaf = entry->children[pos];
+					if(leaf!=NULL){
+						return 1;
+					}else{
+						return 0;
+					}
 				} else {
 					entry = entry->children[pos];
 				}
 			}
 		}
-		printf("\nsocket is blacklisted: ");
-		printf_addr(sa);
-		printf(" Port: %d", leaf->port);
-		printf(" level: %d\n", i);
+		//		printf("\nsocket is blacklisted: ");
+		//		printf_addr(sa);
+		//		printf(" Port: %d", leaf->port);
+		//		printf(" level: %d\n", i);
 		return 1;
 		break;
 		/*	case AF_INET6:
@@ -193,7 +215,7 @@ void printf_bl_entry(unsigned int * pos, int level, int maxlevel, void * entry) 
 	}
 }
 
-void printf_blacklist() {
+void blacklist_printf() {
 	unsigned int pos[16];
 	printf("----------BLACKLIST-IPv4-------\n");
 	printf_bl_entry(pos, 0, 4, IPv4_blacklist);

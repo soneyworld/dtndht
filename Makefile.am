@@ -1,4 +1,4 @@
-SUBDIRS = dtndht
+SUBDIRS = dtndht test
 DIST_SUBDIRS = dtndht
 
 pkgconfigdir = $(libdir)/pkgconfig
