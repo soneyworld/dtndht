@@ -72,13 +72,6 @@ static struct list {
 
 static int dht_has_been_ready = 0;
 
-/*struct blacklist_entry {
- struct sockaddr_storage ss;
- int salen;
- struct blacklist_entry *next;
- };
- static struct blacklist_entry *blacklist = NULL;
- static long numberOfBlacklistedNodes = 0;*/
 struct blacklisted_id {
 	unsigned char md[SHA_DIGEST_LENGTH];
 	struct blacklisted_id *next;
@@ -326,20 +319,6 @@ struct dhtentry* getFromList(const unsigned char *key, struct list *table) {
 	}
 	return NULL;
 }
-
-/*static void blacklist_node(const struct sockaddr *from, int fromlen) {
- if (!dht_blacklisted(from, fromlen)) {
- struct blacklist_entry * entry = malloc(sizeof(struct blacklist_entry));
- memcpy(&entry->ss, from, fromlen);
- entry->salen = fromlen;
- if (blacklist) {
- entry->next = blacklist;
- }
- blacklist = entry;
- numberOfBlacklistedNodes++;
- printf("blacklisting node %ld\n", numberOfBlacklistedNodes);
- }
- }*/
 
 /* The call-back function is called by the DHT whenever something
  interesting happens.  Right now, it only happens when we get a new value or
@@ -920,7 +899,6 @@ int dtn_dht_ping_node(struct sockaddr *sa, int salen) {
 
 int dht_blacklisted(const struct sockaddr *sa, int salen) {
 	return blacklist_blacklisted(sa);
-	return 0;
 }
 
 unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return,
