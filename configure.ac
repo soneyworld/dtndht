@@ -55,21 +55,28 @@ dnl Checks for programs.
 dnl -----------------------------------------------
 
 AC_PROG_CC
+AC_PROG_CXX
+AC_PROG_RANLIB
 
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-lcrypt':
 AC_CHECK_LIB([crypt], [main])
 
 # Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h stddef.h])
+
+AC_FUNC_MALLOC
+AC_HEADER_STDBOOL
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_RESTRICT
 AC_TYPE_SIZE_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT8_T
 
 # Checks for library functions.
 AC_FUNC_REALLOC
-AC_CHECK_FUNCS([gettimeofday inet_ntoa memmove memset select socket strtol])
+AC_CHECK_FUNCS([gettimeofday inet_ntoa memmove memset select socket strtol memchr])
 
 # check for openssl
 PKG_CHECK_MODULES(OPENSSL, [openssl],[
