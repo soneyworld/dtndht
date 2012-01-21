@@ -94,6 +94,5 @@ AM_CONDITIONAL(OPENSSL, test x$use_openssl = xyes)
 
 AC_CONFIG_FILES([Makefile \
 	dtndht/Makefile \
-	test/Makefile \
 	dtndht.pc])
 AC_OUTPUT
