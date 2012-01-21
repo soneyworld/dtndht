@@ -20,64 +20,114 @@
 #include "dtndht/dtndht.h"
 
 #ifndef max
-	#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
+#define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
 #endif
 
 static struct dtn_dht_context _context;
-static int _foundNodes;
+static int _foundNodes = 0;
+#define MAX_NEIGHBORS 265
+static int _neighbors[MAX_NEIGHBORS];
+static time_t _neighbors_pinged = 0;
+#define MAX_RANDOMLOOKUPS 40
+static int _random_lookups = 0;
+static int _announced = 0;
+
 static int _interrupt_pipe[2];
 static unsigned char _buf[4096];
 
-static volatile sig_atomic_t dumping = 0, searching = 0, _exiting = 0, announcing=0;
+static volatile sig_atomic_t dumping = 0, searching = 0, _exiting = 0,
+		announcing = 0;
 
-static void
-sigdump(int signo)
-{
-
+static void sigdump(int signo) {
+	dumping = 1;
 }
 
-static void
-sigtest(int signo)
-{
-    searching = 1;
+static void sigtest(int signo) {
+	searching = 1;
 }
 
-static void
-sigexit(int signo)
-{
-    _exiting = 1;
+static void sigexit(int signo) {
+	_exiting = 1;
 }
 
-static void
-init_signals(void)
-{
-    struct sigaction sa;
-    sigset_t ss;
+static void init_signals(void) {
+	struct sigaction sa;
+	sigset_t ss;
 
-    sigemptyset(&ss);
-    sa.sa_handler = sigdump;
-    sa.sa_mask = ss;
-    sa.sa_flags = 0;
-    sigaction(SIGUSR1, &sa, NULL);
+	sigemptyset(&ss);
+	sa.sa_handler = sigdump;
+	sa.sa_mask = ss;
+	sa.sa_flags = 0;
+	sigaction(SIGUSR1, &sa, NULL);
 
-    sigemptyset(&ss);
-    sa.sa_handler = sigtest;
-    sa.sa_mask = ss;
-    sa.sa_flags = 0;
-    sigaction(SIGUSR2, &sa, NULL);
+	sigemptyset(&ss);
+	sa.sa_handler = sigtest;
+	sa.sa_mask = ss;
+	sa.sa_flags = 0;
+	sigaction(SIGUSR2, &sa, NULL);
 
-    sigemptyset(&ss);
-    sa.sa_handler = sigexit;
-    sa.sa_mask = ss;
-    sa.sa_flags = 0;
-    sigaction(SIGINT, &sa, NULL);
+	sigemptyset(&ss);
+	sa.sa_handler = sigexit;
+	sa.sa_mask = ss;
+	sa.sa_flags = 0;
+	sigaction(SIGINT, &sa, NULL);
+}
+
+void ping_neighbors() {
+	if (_neighbors_pinged < time(NULL)) {
+		struct sockaddr_in ip4addr;
+		struct sockaddr_in6 ip6addr;
+		ip4addr.sin_family = AF_INET;
+		ip6addr.sin6_family = AF_INET6;
+		inet_pton(AF_INET, "127.0.0.1", &ip4addr.sin_addr);
+		inet_pton(AF_INET6, "::1", &ip6addr.sin6_addr);
+		int i;
+		for (i = 0; i < MAX_NEIGHBORS; i++) {
+			if (_neighbors[i] > 0) {
+				ip4addr.sin_port = htons(_neighbors[i]);
+				ip6addr.sin6_port = htons(_neighbors[i]);
+				if (_context.ipv4socket >= 0)
+					dtn_dht_ping_node((struct sockaddr*) &ip4addr,
+							sizeof ip4addr);
+				if (_context.ipv6socket >= 0)
+					dtn_dht_ping_node((struct sockaddr*) &ip6addr,
+							sizeof ip6addr);
+			}
+		}
+		_neighbors_pinged = time(NULL);
+	}
 }
 
 // Lookup of an eid was successful
 void dtn_dht_handle_lookup_result(const unsigned char *eid, size_t eidlen,
 		const unsigned char *cltype, size_t cllen, int ipversion,
 		struct sockaddr_storage *addr, size_t addrlen, size_t count) {
-
+	if (count <= 0)
+		return;
+	printf("FOUND %s %s: ", eid, cltype);
+	int i, port;
+	for (i = 0; i < count; i++) {
+		char *buf;
+		switch (addr[i].ss_family) {
+		case AF_INET:
+			buf = (char*) malloc(INET_ADDRSTRLEN);
+			inet_ntop(addr[i].ss_family,
+					&((struct sockaddr_in *) &addr[i])->sin_addr, buf,
+					INET_ADDRSTRLEN);
+			port = ((struct sockaddr_in *) &addr[i])->sin_port;
+			break;
+		case AF_INET6:
+			buf = (char*) malloc(INET6_ADDRSTRLEN);
+			inet_ntop(addr[i].ss_family,
+					&((struct sockaddr_in6 *) &addr[i])->sin6_addr, buf,
+					INET6_ADDRSTRLEN);
+			port = ((struct sockaddr_in6 *) &addr[i])->sin6_port;
+			break;
+		}
+		printf(" %s %d ", buf, port);
+		free(buf);
+	}
+	printf("\n");
 }
 // Lookup of a group was successful
 void dtn_dht_handle_lookup_group_result(const unsigned char *eid,
@@ -158,34 +208,14 @@ int main(int argc, char **argv) {
 	if (dtn_dht_init(&_context) < 0)
 		abort();
 	// Pinging all known neighbors
-	while (i < argc) {
-		struct addrinfo hints, *info, *infop;
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_socktype = SOCK_DGRAM;
-		if (!ipv6)
-			hints.ai_family = AF_INET;
-		else if (!ipv4)
-			hints.ai_family = AF_INET6;
-		else
-			hints.ai_family = 0;
-		rc = getaddrinfo(argv[i], argv[i + 1], &hints, &info);
-		if (rc != 0) {
-			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rc));
-			exit(1);
-		}
-
+	int j;
+	for (j = 0; j < MAX_NEIGHBORS; j++)
+		_neighbors[j] = 0;
+	j = 0;
+	while (i < argc && j < MAX_NEIGHBORS) {
+		_neighbors[j] = atoi(argv[i]);
 		i++;
-		if (i >= argc)
-			goto usage;
-
-		infop = info;
-		while (infop) {
-			dtn_dht_ping_node(infop->ai_addr, infop->ai_addrlen);
-			infop = infop->ai_next;
-		}
-		freeaddrinfo(info);
-
-		i++;
+		j++;
 	}
 	init_signals();
 	time_t tosleep = 0;
@@ -254,11 +284,36 @@ int main(int argc, char **argv) {
 		numberOfBlocksHosts = dtn_dht_blacklisted_nodes(
 				&numberOfBlocksHostsIPv4, &numberOfBlocksHostsIPv6);
 		if (_foundNodes != numberOfHosts) {
-			printf("DHT Nodes available: %d (Good:%d+%d) Blocked: %d (%d+%d)",
+			printf(
+					"DHT Nodes available: %d (Good:%d+%d) Blocked: %d (%d+%d)\n",
 					numberOfHosts, numberOfGoodHosts, numberOfGood6Hosts,
 					numberOfBlocksHosts, numberOfBlocksHostsIPv4,
 					numberOfBlocksHostsIPv6);
 			_foundNodes = numberOfHosts;
+		}
+		if (_foundNodes <= 8 && _foundNodes >= 0) {
+			ping_neighbors();
+		}
+		if (dtn_dht_ready_for_work(&_context) == 2 && _random_lookups
+				< MAX_RANDOMLOOKUPS) {
+			dtn_dht_start_random_lookup(&_context);
+			_random_lookups++;
+		}
+		if (dtn_dht_ready_for_work(&_context)) {
+			if (!_announced) {
+				dtn_dht_announce(&_context, "dtn://test", 10, "TCP", 3,
+						_context.port);
+				dtn_dht_lookup(&_context, "dtn://test", 10, "TCP", 3);
+				_announced = 1;
+			}
+			if (searching) {
+
+				searching = 0;
+			}
+		}
+		if (dumping) {
+			dht_dump_tables(stdout);
+			dumping = 0;
 		}
 		if (rc < 0) {
 			if (errno == EINTR) {
@@ -273,11 +328,14 @@ int main(int argc, char **argv) {
 			}
 		}
 	}
+	if (_announced) {
+		dtn_dht_deannounce("dtn://test", 10, "TCP", 3, _context.port);
+	}
 	dtn_dht_uninit();
 	dtn_dht_close_sockets(&_context);
 	return 0;
 
-	usage: printf("Usage: dtndhttest [-q] [-4] [-6] port [address port]...\n");
+	usage: printf("Usage: dtndhttest [-q] [-4] [-6] port [port]...\n");
 	exit(1);
 }
 
