@@ -27,7 +27,7 @@ int bootstrapping_hashes = 0;
 #endif
 
 #ifndef DHT_READY_THRESHOLD
-#define DHT_READY_THRESHOLD 40
+#define DHT_READY_THRESHOLD 30
 #endif
 
 #ifndef REANNOUNCE_THRESHOLD
@@ -37,9 +37,9 @@ int bootstrapping_hashes = 0;
 #define BOOTSTRAPPING_DOMAIN "dtndht.ibr.cs.tu-bs.de"
 #define BOOTSTRAPPING_SERVICE "6881"
 
-#define REPORT_HASHES
+//#define REPORT_HASHES
 //#define DEBUG_SAVING
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 #ifndef REPORT_HASHES
