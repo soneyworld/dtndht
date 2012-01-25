@@ -61,8 +61,9 @@ struct dhtentry {
 #ifdef REPORT_HASHES
 static void printf_hash(const unsigned char *buf) {
 	int i;
-	for (i = 0; i < SHA_DIGEST_LENGTH; i++)
+	for (i = 0; i < SHA_DIGEST_LENGTH; i++) {
 		printf("%02x", buf[i]);
+	}
 }
 #endif
 
@@ -153,6 +154,7 @@ void dtn_dht_start_random_lookup(struct dtn_dht_context *ctx) {
 }
 
 void cleanUpList(struct list *table, int threshold) {
+	int isempty = 1;
 	struct dhtentry *head = table->head;
 	struct dhtentry *pos = head;
 	struct dhtentry *prev = NULL;
@@ -178,9 +180,16 @@ void cleanUpList(struct list *table, int threshold) {
 			} else {
 				pos = NULL;
 			}
+		} else {
+			isempty = 0;
 		}
 		prev = pos;
-		pos = pos->next;
+		if (pos != NULL) {
+			pos = pos->next;
+		}
+	}
+	if (isempty) {
+		table->head = NULL;
 	}
 }
 
@@ -316,8 +325,8 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 		}
 		break;
 #ifdef REPORT_HASHES
-	case DHT_EVENT_SEARCH_DONE6:
-	case DHT_EVENT_SEARCH_DONE:
+		case DHT_EVENT_SEARCH_DONE6:
+		case DHT_EVENT_SEARCH_DONE:
 		entry = getFromList(info_hash, &lookuptable);
 		if (entry) {
 
