@@ -49,6 +49,7 @@ int bootstrapping_hashes = 0;
 
 struct dhtentry {
 	unsigned char md[SHA_DIGEST_LENGTH];
+	unsigned char md2[SHA_DIGEST_LENGTH];
 	unsigned char *eid;
 	size_t eidlen;
 	unsigned char *cl;
@@ -222,12 +223,13 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 	return result;
 }
 
-void addToList(const unsigned char *key, const unsigned char *eid,
+void addToList(const unsigned char *key, const unsigned char *key2, const unsigned char *eid,
 		size_t eidlen, const unsigned char *cltype, size_t cllen, int port,
 		struct list *table) {
 	struct dhtentry *newentry;
 	newentry = (struct dhtentry*) malloc(sizeof(struct dhtentry));
 	memcpy(newentry->md, key, SHA_DIGEST_LENGTH);
+	memcpy(newentry->md2, key2, SHA_DIGEST_LENGTH);
 	newentry->eid = (unsigned char*) malloc(eidlen + 1);
 	newentry->eid[eidlen] = '\0';
 	strncpy((char*) newentry->eid, (const char*) eid, eidlen);
@@ -614,7 +616,9 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 	if (!dtn_dht_ready_for_work(ctx))
 		return 0;
 	unsigned char key[SHA_DIGEST_LENGTH];
-	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":", 1, eid, eidlen);
+	unsigned char key2[SHA_DIGEST_LENGTH];
+	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, "A:", 2, eid, eidlen);
+	dht_hash(key2, SHA_DIGEST_LENGTH, cltype, cllen, "B:", 2, eid, eidlen);
 #ifdef REPORT_HASHES
 	printf("LOOKUP: ");
 	printf_hash(key);
@@ -622,7 +626,7 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 #endif
 	struct dhtentry *entry = getFromList(key, &lookuptable);
 	if (entry == NULL) {
-		addToList(key, eid, eidlen, cltype, cllen, 0, &lookuptable);
+		addToList(key, key2 ,eid, eidlen, cltype, cllen, 0, &lookuptable);
 		return dtn_dht_search(ctx, key, 0);
 	} else {
 		entry->updatetime = time(NULL);
