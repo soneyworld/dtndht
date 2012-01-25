@@ -78,6 +78,7 @@ struct blacklisted_id {
 	struct blacklisted_id *next;
 };
 static struct blacklisted_id *idblacklist = NULL;
+static int blacklist_enabled = 1;
 
 static void callback(void *closure, int event, unsigned char *info_hash,
 		void *data, size_t data_len, const struct sockaddr *from, int fromlen);
@@ -137,14 +138,16 @@ int dtn_dht_ready_for_work(struct dtn_dht_context *ctx) {
 void dtn_dht_start_random_lookup(struct dtn_dht_context *ctx) {
 	unsigned char randomhash[20];
 	dht_random_bytes(&randomhash, 20);
-	struct blacklisted_id * bid = malloc(sizeof(struct blacklisted_id));
-	memcpy(bid->md, randomhash, 20);
-	if (idblacklist) {
-		bid->next = idblacklist;
-	} else {
-		bid->next = NULL;
+	if (blacklist_enabled) {
+		struct blacklisted_id * bid = malloc(sizeof(struct blacklisted_id));
+		memcpy(bid->md, randomhash, 20);
+		if (idblacklist) {
+			bid->next = idblacklist;
+		} else {
+			bid->next = NULL;
+		}
+		idblacklist = bid;
 	}
-	idblacklist = bid;
 	if ((*ctx).ipv4socket >= 0) {
 		dht_search(randomhash, 0, AF_INET, callback, NULL);
 	}
@@ -366,14 +369,16 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 				entry->cl, entry->cllen, ipversion, ss,
 				sizeof(struct sockaddr_storage), count);
 	}
-	struct blacklisted_id *bid;
-	bid = idblacklist;
-	while (bid) {
-		if (memcmp(bid->md, info_hash, 20) == 0) {
-			blacklist_blacklist_node(from, info_hash);
-			break;
+	if (blacklist_enabled) {
+		struct blacklisted_id *bid;
+		bid = idblacklist;
+		while (bid) {
+			if (memcmp(bid->md, info_hash, 20) == 0) {
+				blacklist_blacklist_node(from, info_hash);
+				break;
+			}
+			bid = bid->next;
 		}
-		bid = bid->next;
 	}
 	free(ss);
 }
@@ -507,6 +512,14 @@ int dtn_dht_uninit(void) {
 	cleanUpList(&lookupgrouptable, -1);
 	cleanUpList(&announcetable, -1);
 	cleanUpList(&announceneigbourtable, -1);
+	struct blacklisted_id * blacklist = idblacklist;
+	struct blacklisted_id * next;
+	while (blacklist) {
+		next = blacklist->next;
+		free(blacklist);
+		blacklist = next;
+	}
+	blacklist_free();
 	return dht_uninit();
 }
 
@@ -853,6 +866,14 @@ int dtn_dht_load_prev_conf(struct dtn_dht_context *ctx, const char *filename) {
 	return fclose(fp);
 }
 
+void dtn_dht_blacklist(int enable) {
+	if (enable) {
+		blacklist_enabled = 1;
+	} else {
+		blacklist_enabled = 0;
+	}
+}
+
 /**
  * DIRECTLY WRAPPED FUNCTIONS
  */
@@ -866,7 +887,10 @@ int dtn_dht_ping_node(struct sockaddr *sa, int salen) {
 }
 
 int dht_blacklisted(const struct sockaddr *sa, int salen) {
-	return blacklist_blacklisted(sa);
+	if (blacklist_enabled)
+		return blacklist_blacklisted(sa);
+	else
+		return 0;
 }
 
 unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return,
