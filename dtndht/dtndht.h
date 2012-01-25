@@ -33,6 +33,7 @@ int dtn_dht_initstruct(struct dtn_dht_context *ctx);
 // Initialize the dht
 int dtn_dht_init(struct dtn_dht_context *ctx);
 
+// Initialize sockets based on context
 int dtn_dht_init_sockets(struct dtn_dht_context *ctx);
 
 // Destroy the dht
@@ -44,6 +45,10 @@ int dtn_dht_dns_bootstrap(struct dtn_dht_context *ctx, const char* name,
 
 // Sending a simple request for peers for a random node to speeding up bootstrapping
 void dtn_dht_start_random_lookup(struct dtn_dht_context *ctx);
+
+// Switches blacklisting of weird acting nodes on and off
+// Default is on
+void dtn_dht_blacklist(int enable);
 
 // Returns true, if the DHT has more then seven nodes found
 // You should wait with announcements and lookups, until this returns true
@@ -85,7 +90,8 @@ int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
 int dtn_dht_close_sockets(struct dtn_dht_context *ctx);
 
 // If blacklist is enabled (default) the number of blocked addresses is returned
-unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return, unsigned int *ipv6_return);
+unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return,
+		unsigned int *ipv6_return);
 
 // callback functions: Must be provided by the user
 // Lookup of an eid was successful

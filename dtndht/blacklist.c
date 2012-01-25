@@ -98,12 +98,12 @@ void blacklist_blacklist_node(const struct sockaddr *sa, unsigned char * md) {
 		} else {
 			if (prev->children[addr[i - 1]] == NULL) {
 				switch (sa->sa_family) {
-					case AF_INET:
-						number_of_entries_ipv4++;
-						break;
-					case AF_INET6:
-						number_of_entries_ipv6++;
-						break;
+				case AF_INET:
+					number_of_entries_ipv4++;
+					break;
+				case AF_INET6:
+					number_of_entries_ipv6++;
+					break;
 				}
 			}
 			prev->children[addr[i - 1]] = create_new_leaf(port, md);
@@ -134,9 +134,9 @@ int blacklist_blacklisted(const struct sockaddr *sa) {
 			} else {
 				if (i == maxlevel - 1) {
 					leaf = entry->children[pos];
-					if(leaf!=NULL){
+					if (leaf != NULL) {
 						return 1;
-					}else{
+					} else {
 						return 0;
 					}
 				} else {
@@ -222,4 +222,30 @@ void blacklist_printf() {
 	printf("----------BLACKLIST-IPv6-------\n");
 	printf_bl_entry(pos, 0, 16, IPv6_blacklist);
 	printf("-------------------------------\n");
+}
+
+void blacklist_free_tree(void * tree, int level, int maxlevel) {
+	if (tree == NULL)
+		return;
+	if (level < maxlevel) {
+		int i;
+		struct blacklist_entry * entry = (struct blacklist_entry*) tree;
+		for (i = 0; i < 256; i++) {
+			if (entry->children[i] != NULL) {
+				blacklist_free_tree(entry->children[i], level + 1, maxlevel);
+				entry->children[i] = NULL;
+			}
+		}
+		free(entry);
+	} else {
+		struct blacklist_leaf * leaf = (struct blacklist_leaf*) tree;
+		free(leaf);
+	}
+}
+
+void blacklist_free() {
+	blacklist_free_tree(IPv4_blacklist, 0, 4);
+	blacklist_free_tree(IPv6_blacklist, 0, 16);
+	IPv4_blacklist = NULL;
+	IPv6_blacklist = NULL;
 }
