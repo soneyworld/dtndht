@@ -7,4 +7,5 @@ void blacklist_blacklist_node(const struct sockaddr *sa, unsigned char * md);
 int blacklist_blacklisted(const struct sockaddr *sa);
 void blacklist_printf();
 unsigned int blacklist_size(unsigned int *ipv4_return, unsigned int *ipv6_return);
+void blacklist_free(void);
 #endif
