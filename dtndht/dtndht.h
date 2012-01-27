@@ -6,6 +6,10 @@ enum dtn_dht_bind_type {
 	BINDNONE = 0, IPV4ONLY = 1, IPV6ONLY = 2, BINDBOTH = 3
 };
 
+enum dtn_dht_request_type {
+	SINGLETON = 0, GROUP = 1, NEIGHBOUR = 2
+};
+
 extern FILE *dtn_dht_debug;
 
 struct dtn_dht_context {
@@ -56,30 +60,18 @@ int dtn_dht_ready_for_work(struct dtn_dht_context *ctx);
 
 // Asynchronously lookup for the given eid and the given service
 int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
-		size_t eidlen, const unsigned char *cltype, size_t cllen);
-
-int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid,
-		size_t eidlen, const unsigned char *cltype, size_t cllen);
-
-// Join a dtn group with the given gid
-int dtn_dht_join_group(const unsigned char *gid, size_t gidlen,
-		const unsigned char *cltype, size_t cllen, int port);
-// Leave the given dtn group -> stopping the announcing
-int dtn_dht_leave_group(const unsigned char *gid, size_t gidlen,
-		const unsigned char *cltype, size_t cllen, int port);
+		size_t eidlen, const unsigned char *cltype, size_t cllen,
+		enum dtn_dht_request_type type);
 
 // DHT Announce
 int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
-		size_t eidlen, const unsigned char *cltype, size_t cllen, int port);
-int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx,
-		const unsigned char *eid, size_t eidlen, const unsigned char *cltype,
-		size_t cllen, int port);
+		size_t eidlen, const unsigned char *cltype, size_t cllen, int port,
+		enum dtn_dht_request_type type);
 
 // DHT Stop Announcement
 int dtn_dht_deannounce(const unsigned char *eid, size_t eidlen,
-		const unsigned char *cltype, size_t cllen, int port);
-int dtn_dht_deannounce_neighbour(const unsigned char *eid, size_t eidlen,
-		const unsigned char *cltype, size_t cllen, int port);
+		const unsigned char *cltype, size_t cllen, int port,
+		enum dtn_dht_request_type type);
 
 // The main loop of the dht
 int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
@@ -97,12 +89,8 @@ unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return,
 // Lookup of an eid was successful
 void dtn_dht_handle_lookup_result(const unsigned char *eid, size_t eidlen,
 		const unsigned char *cltype, size_t cllen, int ipversion,
-		struct sockaddr_storage *addr, size_t addrlen, size_t count);
-// Lookup of a group was successful
-void dtn_dht_handle_lookup_group_result(const unsigned char *eid,
-		size_t eidlen, const unsigned char *cltype, size_t cllen,
-		int ipversion, struct sockaddr_storage *addr, size_t addrlen,
-		size_t count);
+		struct sockaddr_storage *addr, size_t addrlen, size_t count,
+		enum dtn_dht_request_type type);
 
 // functions for self implemented bootstrapping methods
 // inserting a known dht node (use this only, if you know the node.

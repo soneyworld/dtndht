@@ -69,7 +69,8 @@ static void printf_hash(const unsigned char *buf) {
 
 static struct list {
 	struct dhtentry *head;
-} lookuptable, lookupgrouptable, announcetable, announceneigbourtable;
+} lookuptable, lookupgrouptable, lookupneigbourtable, announcetable,
+		announcegrouptable, announceneigbourtable;
 
 static int dht_has_been_ready = 0;
 
@@ -234,6 +235,12 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 	return result;
 }
 
+int reannounceLists(struct dtn_dht_context *ctx){
+	reannounceList(ctx, &announcetable, REANNOUNCE_THRESHOLD);
+	reannounceList(ctx, &announcegrouptable, REANNOUNCE_THRESHOLD);
+	reannounceList(ctx, &announceneigbourtable, REANNOUNCE_THRESHOLD);
+}
+
 void addToList(const unsigned char *key, const unsigned char *eid,
 		size_t eidlen, const unsigned char *cltype, size_t cllen, int port,
 		struct list *table) {
@@ -256,16 +263,19 @@ void addToList(const unsigned char *key, const unsigned char *eid,
 
 void removeFromList(const unsigned char *eid, size_t eidlen,
 		const unsigned char *cltype, size_t cllen, int port, struct list *table) {
+	int empty = 1;
 	struct dhtentry *pos = table->head;
 	struct dhtentry *prev = NULL;
 	while (pos) {
 		if (pos->port == port && pos->eidlen == eidlen && pos->cllen == cllen) {
 			if ((strcmp((char*) pos->eid, (const char*) eid) == 0) && (strcmp(
 					(char*) pos->cl, (const char*) cltype) == 0)) {
-				if (pos->next) {
-					prev->next = pos->next;
-				} else {
-					prev->next = NULL;
+				if (prev) {
+					if (pos->next) {
+						prev->next = pos->next;
+					} else {
+						prev->next = NULL;
+					}
 				}
 				free(pos->cl);
 				free(pos->eid);
@@ -275,6 +285,10 @@ void removeFromList(const unsigned char *eid, size_t eidlen,
 		}
 		prev = pos;
 		pos = pos->next;
+		empty = 0;
+	}
+	if (empty) {
+		table->head = NULL;
 	}
 }
 
@@ -358,17 +372,27 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 #endif
 		dtn_dht_handle_lookup_result(entry->eid, entry->eidlen, entry->cl,
 				entry->cllen, ipversion, ss, sizeof(struct sockaddr_storage),
-				count);
+				count, SINGLETON);
+		goto done;
 	}
 	entry = getFromList(info_hash, &lookupgrouptable);
 	if (entry) {
 #ifdef DEBUG
 		printf("Calling lookup group result event\n");
 #endif
-		dtn_dht_handle_lookup_group_result(entry->eid, entry->eidlen,
-				entry->cl, entry->cllen, ipversion, ss,
-				sizeof(struct sockaddr_storage), count);
+		dtn_dht_handle_lookup_result(entry->eid, entry->eidlen, entry->cl,
+				entry->cllen, ipversion, ss, sizeof(struct sockaddr_storage),
+				count, GROUP);
+		goto done;
 	}
+	entry = getFromList(info_hash, &lookupneigbourtable);
+	if (entry) {
+		dtn_dht_handle_lookup_result(entry->eid, entry->eidlen, entry->cl,
+				entry->cllen, ipversion, ss, sizeof(struct sockaddr_storage),
+				count, NEIGHBOUR);
+		goto done;
+	}
+
 	if (blacklist_enabled) {
 		struct blacklisted_id *bid;
 		bid = idblacklist;
@@ -380,7 +404,7 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 			bid = bid->next;
 		}
 	}
-	free(ss);
+	done: free(ss);
 }
 
 int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
@@ -397,7 +421,9 @@ int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
 int dtn_dht_init(struct dtn_dht_context *ctx) {
 	lookuptable.head = NULL;
 	lookupgrouptable.head = NULL;
+	lookupneigbourtable.head = NULL;
 	announcetable.head = NULL;
+	announcegrouptable.head = NULL;
 	announceneigbourtable.head = NULL;
 	return dht_init((*ctx).ipv4socket, (*ctx).ipv6socket, (*ctx).id, NULL);
 }
@@ -510,7 +536,9 @@ int dtn_dht_init_sockets(struct dtn_dht_context *ctx) {
 int dtn_dht_uninit(void) {
 	cleanUpList(&lookuptable, -1);
 	cleanUpList(&lookupgrouptable, -1);
+	cleanUpList(&lookupneigbourtable, -1);
 	cleanUpList(&announcetable, -1);
+	cleanUpList(&announcegrouptable, -1);
 	cleanUpList(&announceneigbourtable, -1);
 	struct blacklisted_id * blacklist = idblacklist;
 	struct blacklisted_id * next;
@@ -528,9 +556,9 @@ int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
 		time_t *tosleep) {
 	cleanUpList(&lookuptable, LOOKUP_THRESHOLD);
 	cleanUpList(&lookupgrouptable, LOOKUP_THRESHOLD);
+	cleanUpList(&lookupneigbourtable, LOOKUP_THRESHOLD);
 	if (dtn_dht_ready_for_work(ctx)) {
-		reannounceList(ctx, &announcetable, REANNOUNCE_THRESHOLD);
-		reannounceList(ctx, &announceneigbourtable, REANNOUNCE_THRESHOLD);
+		reannounceLists(ctx);
 	}
 	return dht_periodic(buf, buflen, from, fromlen, tosleep, callback, NULL);
 }
@@ -632,64 +660,72 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 }
 
 int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
-		size_t eidlen, const unsigned char *cltype, size_t cllen) {
+		size_t eidlen, const unsigned char *cltype, size_t cllen,
+		enum dtn_dht_request_type type) {
 	if (!dtn_dht_ready_for_work(ctx))
 		return 0;
+	struct list * table;
 	unsigned char key[SHA_DIGEST_LENGTH];
-	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":", 1, eid, eidlen);
+	switch (type) {
+	case SINGLETON:
+		dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":", 1, eid, eidlen);
+		table = &lookuptable;
+		break;
+	case GROUP:
+		dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":g:", 3, eid, eidlen);
+		table = &lookupgrouptable;
+		break;
+	case NEIGHBOUR:
+		dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":n:", 3, eid, eidlen);
+		table = &lookupneigbourtable;
+		break;
+	default:
+		return 1;
+	}
 #ifdef REPORT_HASHES
 	printf("LOOKUP: ");
 	printf_hash(key);
 	printf("\n");
 #endif
-	struct dhtentry *entry = getFromList(key, &lookuptable);
+	struct dhtentry *entry = getFromList(key, table);
 	if (entry == NULL) {
-		addToList(key, eid, eidlen, cltype, cllen, 0, &lookuptable);
+		addToList(key, eid, eidlen, cltype, cllen, 0, table);
 		return dtn_dht_search(ctx, key, 0);
 	} else {
 		entry->updatetime = time(NULL);
 		return dtn_dht_search(ctx, key, 0);
 	}
 	return 1;
-}
-
-int dtn_dht_lookup_group(struct dtn_dht_context *ctx, const unsigned char *eid,
-		size_t eidlen, const unsigned char *cltype, size_t cllen) {
-	if (!dtn_dht_ready_for_work(ctx))
-		return 0;
-	unsigned char key[SHA_DIGEST_LENGTH];
-	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":g:", 3, eid, eidlen);
-	struct dhtentry *entry = getFromList(key, &lookupgrouptable);
-	if (entry == NULL) {
-		addToList(key, eid, eidlen, cltype, cllen, 0, &lookupgrouptable);
-	} else {
-		entry->updatetime = time(NULL);
-	}
-#ifdef REPORT_HASHES
-	printf("LOOKUP GROUP: ");
-	printf_hash(key);
-	printf("\n");
-#endif
-	return dtn_dht_search(ctx, key, 0);
 }
 
 int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
-		size_t eidlen, const unsigned char *cltype, size_t cllen, int port) {
+		size_t eidlen, const unsigned char *cltype, size_t cllen, int port,
+		enum dtn_dht_request_type type) {
+	struct list * table;
 	unsigned char key[SHA_DIGEST_LENGTH];
+	switch (type) {
+	case SINGLETON:
+		table = &announcetable;
+		dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":", 1, eid, eidlen);
+		break;
+	case GROUP:
+		table = &announcegrouptable;
+		dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":g:", 1, eid, eidlen);
+		break;
+	case NEIGHBOUR:
+		table = &announceneigbourtable;
+		dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":n:", 3, eid, eidlen);
+		break;
+	default:
+		return 1;
+	}
 	struct dhtentry *entry;
-	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":", 1, eid, eidlen);
-	entry = getFromList(key, &announcetable);
+	entry = getFromList(key, table);
 	if (entry == NULL) {
-		addToList(key, eid, eidlen, cltype, cllen, port, &announcetable);
+		addToList(key, eid, eidlen, cltype, cllen, port, table);
 		if (!dtn_dht_ready_for_work(ctx))
 			return 0;
 		else {
-#ifdef REPORT_HASHES
-			int i;
-			printf("ANNOUNCE: ");
-			printf_hash(key);
-			printf("\n");
-#endif
 			return dtn_dht_search(ctx, key, port);
 		}
 	} else {
@@ -697,40 +733,30 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 		if (!dtn_dht_ready_for_work(ctx))
 			return 0;
 		else {
-#ifdef REPORT_HASHES
-			int i;
-			printf("ANNOUNCE: ");
-			printf_hash(key);
-			printf("\n");
-#endif
 			return dtn_dht_search(ctx, key, port);
 		}
 	}
 	return 1;
 }
 
-int dtn_dht_announce_neighbour(struct dtn_dht_context *ctx,
-		const unsigned char *eid, size_t eidlen, const unsigned char *cltype,
-		size_t cllen, int port) {
-	unsigned char key[SHA_DIGEST_LENGTH];
-	dht_hash(key, SHA_DIGEST_LENGTH, cltype, cllen, ":n:", 3, eid, eidlen);
-	if (getFromList(key, &announceneigbourtable) == NULL)
-		addToList(key, eid, eidlen, cltype, cllen, port, &announceneigbourtable);
-	if (!dtn_dht_ready_for_work(ctx))
-		return 0;
-	else
-		return dtn_dht_search(ctx, key, port);
-}
-
 int dtn_dht_deannounce(const unsigned char *eid, size_t eidlen,
-		const unsigned char *cltype, size_t cllen, int port) {
-	removeFromList(eid, eidlen, cltype, cllen, port, &announcetable);
-	return 0;
-}
-
-int dtn_dht_deannounce_neighbour(const unsigned char *eid, size_t eidlen,
-		const unsigned char *cltype, size_t cllen, int port) {
-	removeFromList(eid, eidlen, cltype, cllen, port, &announceneigbourtable);
+		const unsigned char *cltype, size_t cllen, int port,
+		enum dtn_dht_request_type type) {
+	struct list * table;
+	switch (type) {
+	case SINGLETON:
+		table = &announcetable;
+		break;
+	case GROUP:
+		table = &announcegrouptable;
+		break;
+	case NEIGHBOUR:
+		table = &announceneigbourtable;
+		break;
+	default:
+		return 1;
+	}
+	removeFromList(eid, eidlen, cltype, cllen, port, table);
 	return 0;
 }
 
