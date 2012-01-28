@@ -92,6 +92,22 @@ PKG_CHECK_MODULES(OPENSSL, [openssl],[
 
 AM_CONDITIONAL(OPENSSL, test x$use_openssl = xyes)
 
+dnl -----------------------------------------------
+dnl optional parameter: double lookup mechanism
+dnl -----------------------------------------------
+
+AC_ARG_WITH(doublelookup,
+	AS_HELP_STRING([--with-doublelookup], [build with double lookup support
+		@<:@default=no@:>@]),
+	[
+	if test "x$with_doublelookup" = "xyes"; then
+		AC_DEFINE(WITH_DOUBLE_LOOKUP, [1], ["double lookup support enabled"])
+	fi
+	],[]
+)
+	
+AM_CONDITIONAL(DOUBLELOOKUP, test x$with_doublelookup = xyes)
+
 AC_CONFIG_FILES([Makefile \
 	dtndht/Makefile \
 	dtndht.pc])

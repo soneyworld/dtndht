@@ -7,6 +7,11 @@ c_sources = dht.c implFunction.c dtndht.c blacklist.c
 AM_CFLAGS = $(OPENSSL_CFLAGS)
 AM_LDFLAGS = $(OPENSSL_LIBS)
 
+if DOUBLELOOKUP
+h_sources += doublelookup.h
+c_sources += doublelookup.c
+endif
+
 library_includedir=$(includedir)/$(GENERIC_LIBRARY_NAME)-$(GENERIC_API_VERSION)/$(GENERIC_LIBRARY_NAME)
 library_include_HEADERS = $(include_h_sources)
 

@@ -10,11 +10,14 @@
 #include <netdb.h>
 #include <stdint.h>
 //#include "dht.h"
+#include "config.h"
 #include "dtndht.h"
 #include "blacklist.h"
 #include <openssl/sha.h>
 #include <netinet/in.h>
-
+#ifdef WITH_DOUBLE_LOOKUP
+#include "doublelookup.h"
+#endif
 #ifndef LOOKUP_THRESHOLD
 #define LOOKUP_THRESHOLD 1800
 #endif
@@ -298,11 +301,6 @@ struct dhtentry* getFromList(const unsigned char *key, struct list *table) {
 	while (result) {
 		n = memcmp(key, result->md, SHA_DIGEST_LENGTH);
 		if (n == 0) {
-#ifdef REPORT_HASHES
-			printf("Search in list -> Result found: ");
-			printf_hash(key);
-			printf("\n");
-#endif
 			return result;
 		}
 		result = result->next;
@@ -341,35 +339,12 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 			cpyvaluetosocketstorage(&ss[i], data + (i * 18), AF_INET6);
 		}
 		break;
-#ifdef REPORT_HASHES
-		case DHT_EVENT_SEARCH_DONE6:
-		case DHT_EVENT_SEARCH_DONE:
-		entry = getFromList(info_hash, &lookuptable);
-		if (entry) {
-
-			printf("SEARCH DONE FOR LOOKUP: ");
-			printf_hash(info_hash);
-			printf(" EID: %s CL: %s PORT: %d\n", entry->eid, entry->cl,
-					entry->port);
-		} else {
-			entry = getFromList(info_hash, &announcetable);
-			if (entry) {
-				printf("SEARCH DONE FOR ANNOUNCE: ");
-				printf_hash(info_hash);
-				printf(" EID: %s CL: %s PORT: %d\n", entry->eid, entry->cl,
-						entry->port);
-			}
-		}
-#endif
 	default:
 		return;
 	}
 	// Find the right informations
 	entry = getFromList(info_hash, &lookuptable);
 	if (entry) {
-#ifdef DEBUG
-		printf("Calling lookup result event\n");
-#endif
 		dtn_dht_handle_lookup_result(entry->eid, entry->eidlen, entry->cl,
 				entry->cllen, ipversion, ss, sizeof(struct sockaddr_storage),
 				count, SINGLETON);
@@ -377,9 +352,6 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 	}
 	entry = getFromList(info_hash, &lookupgrouptable);
 	if (entry) {
-#ifdef DEBUG
-		printf("Calling lookup group result event\n");
-#endif
 		dtn_dht_handle_lookup_result(entry->eid, entry->eidlen, entry->cl,
 				entry->cllen, ipversion, ss, sizeof(struct sockaddr_storage),
 				count, GROUP);
@@ -647,9 +619,6 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		return dht_search(id, port, AF_INET6, callback, NULL);
 		break;
 	case IPV4ONLY:
-#ifdef DEBUG
-		printf("SEARCHING IPV4\n");
-#endif
 		return dht_search(id, port, AF_INET, callback, NULL);
 		break;
 	case IPV6ONLY:
