@@ -13,6 +13,7 @@
 #include "config.h"
 #include "dtndht.h"
 #include "blacklist.h"
+#include "rating.h"
 #include <openssl/sha.h>
 #include <netinet/in.h>
 #ifdef WITH_DOUBLE_LOOKUP
@@ -58,6 +59,7 @@ struct dhtentry {
 	size_t cllen;
 	time_t updatetime;
 	int port;
+	struct dhtentryresult *resultentries;
 	struct dhtentry *next;
 };
 
@@ -179,6 +181,7 @@ void cleanUpList(struct list *table, int threshold) {
 			} else {
 				table->head = NULL;
 			}
+			free_rating(pos->resultentries);
 			free(pos->cl);
 			free(pos->eid);
 			free(pos);
@@ -238,7 +241,7 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 	return result;
 }
 
-int reannounceLists(struct dtn_dht_context *ctx){
+int reannounceLists(struct dtn_dht_context *ctx) {
 	reannounceList(ctx, &announcetable, REANNOUNCE_THRESHOLD);
 	reannounceList(ctx, &announcegrouptable, REANNOUNCE_THRESHOLD);
 	reannounceList(ctx, &announceneigbourtable, REANNOUNCE_THRESHOLD);
@@ -261,6 +264,7 @@ void addToList(const unsigned char *key, const unsigned char *eid,
 	newentry->port = port;
 	newentry->next = table->head;
 	newentry->updatetime = time(NULL);
+	newentry->resultentries = NULL;
 	table->head = newentry;
 }
 
@@ -280,6 +284,7 @@ void removeFromList(const unsigned char *eid, size_t eidlen,
 						prev->next = NULL;
 					}
 				}
+				free_rating(pos->resultentries);
 				free(pos->cl);
 				free(pos->eid);
 				free(pos);
@@ -313,70 +318,77 @@ struct dhtentry* getFromList(const unsigned char *key, struct list *table) {
  when a search completes, but this may be extended in future versions. */
 static void callback(void *closure, int event, unsigned char *info_hash,
 		void *data, size_t data_len, const struct sockaddr *from, int fromlen) {
+	if (!(event == DHT_EVENT_VALUES || event == DHT_EVENT_VALUES6))
+		return;
 	int ipversion;
 	int i;
 	int count = 0;
 	struct sockaddr_storage *ss;
+	int *ratings;
 	struct dhtentry *entry;
+	enum dtn_dht_request_type type;
+	entry = getFromList(info_hash, &lookuptable);
+	if (entry) {
+		type = SINGLETON;
+	} else {
+		entry = getFromList(info_hash, &lookupgrouptable);
+		if (entry) {
+			type = GROUP;
+		} else {
+			entry = getFromList(info_hash, &lookupneigbourtable);
+			if (entry) {
+				type = NEIGHBOUR;
+			} else {
+				// Not requested entry found -> blacklist sender
+				if (blacklist_enabled) {
+					struct blacklisted_id *bid;
+					bid = idblacklist;
+					while (bid) {
+						if (memcmp(bid->md, info_hash, 20) == 0) {
+							blacklist_blacklist_node(from, info_hash);
+							break;
+						}
+						bid = bid->next;
+					}
+				}
+				return;
+			}
+		}
+	}
 	switch (event) {
 	case DHT_EVENT_VALUES:
 		ipversion = 4;
 		count = data_len / 6;
 		ss = (struct sockaddr_storage*) malloc(
 				sizeof(struct sockaddr_storage) * count);
-
+		ratings = (int *) malloc(sizeof(int) * count);
+		memset(ratings, 0, sizeof(int) * count);
 		for (i = 0; i < count; i++) {
 			ss[i].ss_family = AF_INET;
 			cpyvaluetosocketstorage(&ss[i], data + (i * 6), AF_INET);
+			entry->resultentries = get_rating(&ratings[i],
+					entry->resultentries, ss, from, fromlen);
 		}
 		break;
 	case DHT_EVENT_VALUES6:
 		ipversion = 6;
 		count = data_len / 18;
 		ss = malloc(sizeof(struct sockaddr_storage) * count);
+		ratings = (int *) malloc(sizeof(int) * count);
+		memset(ratings, 0, sizeof(int) * count);
 		for (i = 0; i < count; i++) {
 			ss[i].ss_family = AF_INET;
 			cpyvaluetosocketstorage(&ss[i], data + (i * 18), AF_INET6);
+			entry->resultentries = get_rating(&ratings[i],
+					entry->resultentries, ss, from, fromlen);
 		}
 		break;
-	default:
-		return;
 	}
-	// Find the right informations
-	entry = getFromList(info_hash, &lookuptable);
-	if (entry) {
-		dtn_dht_handle_lookup_result(entry->eid, entry->eidlen, entry->cl,
-				entry->cllen, ipversion, ss, sizeof(struct sockaddr_storage),
-				count, SINGLETON);
-		goto done;
-	}
-	entry = getFromList(info_hash, &lookupgrouptable);
-	if (entry) {
-		dtn_dht_handle_lookup_result(entry->eid, entry->eidlen, entry->cl,
-				entry->cllen, ipversion, ss, sizeof(struct sockaddr_storage),
-				count, GROUP);
-		goto done;
-	}
-	entry = getFromList(info_hash, &lookupneigbourtable);
-	if (entry) {
-		dtn_dht_handle_lookup_result(entry->eid, entry->eidlen, entry->cl,
-				entry->cllen, ipversion, ss, sizeof(struct sockaddr_storage),
-				count, NEIGHBOUR);
-		goto done;
-	}
-
-	if (blacklist_enabled) {
-		struct blacklisted_id *bid;
-		bid = idblacklist;
-		while (bid) {
-			if (memcmp(bid->md, info_hash, 20) == 0) {
-				blacklist_blacklist_node(from, info_hash);
-				break;
-			}
-			bid = bid->next;
-		}
-	}
-	done: free(ss);
+	dtn_dht_handle_lookup_result(entry->eid, entry->eidlen, entry->cl,
+			entry->cllen, ipversion, ss, sizeof(struct sockaddr_storage),
+			count, type, ratings);
+	free(ratings);
+	free(ss);
 }
 
 int dtn_dht_initstruct(struct dtn_dht_context *ctx) {

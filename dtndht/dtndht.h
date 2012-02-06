@@ -85,12 +85,12 @@ int dtn_dht_close_sockets(struct dtn_dht_context *ctx);
 unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return,
 		unsigned int *ipv6_return);
 
-// callback functions: Must be provided by the user
+// callback function: Must be provided by the user
 // Lookup of an eid was successful
 void dtn_dht_handle_lookup_result(const unsigned char *eid, size_t eidlen,
 		const unsigned char *cltype, size_t cllen, int ipversion,
 		struct sockaddr_storage *addr, size_t addrlen, size_t count,
-		enum dtn_dht_request_type type);
+		enum dtn_dht_request_type type, int *rating);
 
 // functions for self implemented bootstrapping methods
 // inserting a known dht node (use this only, if you know the node.

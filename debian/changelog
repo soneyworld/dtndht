@@ -1,7 +1,16 @@
+dtndht (0.1.7) experimental; urgency=low
+
+  * New rating functions added
+    * All DHT result have got a rating information
+    * Minimum rating is 0, which means 1 node answered this information
+    * Maximum rating is 10: 11 or more nodes has answered this information
+
+-- Till Lorentzen <lorentze@ibr.cs.tu-bs.de> Mon, 06 Feb 2012 23:40:00 +0100
+
 dtndht (0.1.6) experimental; urgency=low
 
   * New function introduced
-    * Lookup for hosts, groupmembers and neighbours of hosts done by same function
+    * Lookup for hosts, group members and neighbours of hosts done by same function
     * The new lookup function has a type parameter
     * Also the result of a lookup has now a type parameter
     * The group result function has been deleted

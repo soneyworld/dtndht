@@ -1,11 +1,39 @@
-12 January 2012: libbtdht-0.1.2
+06 February 2012: dtndht-0.1.7
+  * New rating functions added
+    * All DHT result have got a rating information
+    * Minimum rating is 0, which means 1 node answered this information
+    * Maximum rating is 10: 11 or more nodes has answered this information
+
+27 January 2012: dtndht-0.1.6
+  * New function introduced
+    * Lookup for hosts, group members and neighbours of hosts done by same function
+    * The new lookup function has a type parameter
+    * Also the result of a lookup has now a type parameter
+    * The group result function has been deleted
+  * Bugfixes on list operations to prevent segmentation faults
+
+25 January 2012: dtndht-0.1.5
+  * Added a option to switch the blacklist off and on
+  * Better memory management
+    * frees all blacklisted id s
+    * frees the blacklist on uninit
+
+19 January 2012: dtndht-0.1.4
+  * Added blacklist support for possible weird acting dht nodes
+  * Added test program for verifying blacklist
+
+16 January 2012: dtndht-0.1.3
+  * Added a new function to speed up bootstrapping with a search for a random hash
+  * Changed the dtn_dht_ready_for_work function to return different status values
+
+12 January 2012: dtndht-0.1.2
   * A lot of bugfixes
   * All library functions should work now
-  * Changed Versionnumber to 0.1.2
+  * Changed version number to 0.1.2
   * Bootstrapping functions implemented
-  * prevent calling funtions until dht is ready to be used
+  * prevent calling functions until dht is ready to be used
 
-27 November 2011: libbtdht-0.1.1
+27 November 2011: dtndht-0.1.1
   * Library Support added.
 
 25 July 2011: dht-0.21
