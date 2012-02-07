@@ -6,10 +6,6 @@ enum dtn_dht_bind_type {
 	BINDNONE = 0, IPV4ONLY = 1, IPV6ONLY = 2, BINDBOTH = 3
 };
 
-enum dtn_dht_request_type {
-	SINGLETON = 0, GROUP = 1, NEIGHBOUR = 2
-};
-
 extern FILE *dtn_dht_debug;
 
 struct dtn_dht_context {
@@ -20,6 +16,26 @@ struct dtn_dht_context {
 	int type;
 	const char *bind;
 	const char *bind6;
+};
+
+struct dtn_eid {
+	const char * eid;
+	size_t eidlen;
+	struct dtn_eid * next;
+};
+
+struct dtn_convergence_layer {
+	const char * cl;
+	size_t cllen;
+	struct dtn_convergence_layer * next;
+};
+
+struct dtn_dht_lookup_result {
+	unsigned char md[20];
+	struct dtn_eid * eid;
+	struct dtn_eid * groups;
+	struct dtn_eid * neighbours;
+	struct dtn_convergence_layer * clayer;
 };
 
 // Loading previous saved buckets for faster bootstrapping
@@ -59,19 +75,13 @@ void dtn_dht_blacklist(int enable);
 int dtn_dht_ready_for_work(struct dtn_dht_context *ctx);
 
 // Asynchronously lookup for the given eid and the given service
-int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
-		size_t eidlen, const unsigned char *cltype, size_t cllen,
-		enum dtn_dht_request_type type);
+int dtn_dht_lookup(struct dtn_dht_context *ctx, const char *md);
 
 // DHT Announce
-int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
-		size_t eidlen, const unsigned char *cltype, size_t cllen, int port,
-		enum dtn_dht_request_type type);
+int dtn_dht_announce(struct dtn_dht_context *ctx, const char *md);
 
 // DHT Stop Announcement
-int dtn_dht_deannounce(const unsigned char *eid, size_t eidlen,
-		const unsigned char *cltype, size_t cllen, int port,
-		enum dtn_dht_request_type type);
+int dtn_dht_deannounce(const char *md);
 
 // The main loop of the dht
 int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
@@ -87,7 +97,7 @@ unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return,
 
 // callback function: Must be provided by the user
 // Lookup of an eid was successful
-void dtn_dht_handle_lookup_result(const unsigned char *eid, size_t eidlen,
+void dtn_dht_handle_lookup_result(,
 		const unsigned char *cltype, size_t cllen, int ipversion,
 		struct sockaddr_storage *addr, size_t addrlen, size_t count,
 		enum dtn_dht_request_type type, int *rating);
