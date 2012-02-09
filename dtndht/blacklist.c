@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <arpa/inet.h>
+#include <openssl/sha.h>
 
 struct blacklist_entry {
 	void * children[256];
@@ -14,10 +15,11 @@ struct blacklist_entry {
 
 struct blacklist_leaf {
 	u_int16_t port;
-	char md[20];
+	char md[SHA_DIGEST_LENGTH];
 };
 static struct blacklist_entry *IPv4_blacklist = NULL;
 static struct blacklist_entry *IPv6_blacklist = NULL;
+static int enabled = 1;
 static unsigned int number_of_entries_ipv4 = 0;
 static unsigned int number_of_entries_ipv6 = 0;
 
@@ -42,7 +44,7 @@ struct blacklist_leaf * create_new_leaf(u_int16_t port, char * md) {
 
 	struct blacklist_leaf *leaf = malloc(sizeof(struct blacklist_leaf));
 	leaf->port = ntohs(port);
-	memcpy(leaf->md, md, 20);
+	memcpy(leaf->md, md, SHA_DIGEST_LENGTH);
 	//	printf("creating leaf with port: %d\n", leaf->port);
 	return leaf;
 }
@@ -54,6 +56,8 @@ void printf_addr(const struct sockaddr *sa) {
 }
 
 void blacklist_blacklist_node(const struct sockaddr *sa, unsigned char * md) {
+	if (!enabled)
+		return;
 	struct sockaddr_in * ip4addr;
 	struct sockaddr_in6 * ip6addr;
 	struct blacklist_entry * prev;
@@ -114,6 +118,8 @@ void blacklist_blacklist_node(const struct sockaddr *sa, unsigned char * md) {
 }
 
 int blacklist_blacklisted(const struct sockaddr *sa) {
+	if (!enabled)
+		return 0;
 	//printf_blacklist();
 	struct sockaddr_in * ip4addr;
 	struct sockaddr_in6 * ip6addr;
@@ -216,6 +222,8 @@ void printf_bl_entry(unsigned int * pos, int level, int maxlevel, void * entry) 
 }
 
 void blacklist_printf() {
+	if (!enabled)
+		return;
 	unsigned int pos[16];
 	printf("----------BLACKLIST-IPv4-------\n");
 	printf_bl_entry(pos, 0, 4, IPv4_blacklist);
@@ -242,10 +250,65 @@ void blacklist_free_tree(void * tree, int level, int maxlevel) {
 		free(leaf);
 	}
 }
-
+void blacklist_id_free();
 void blacklist_free() {
 	blacklist_free_tree(IPv4_blacklist, 0, 4);
 	blacklist_free_tree(IPv6_blacklist, 0, 16);
 	IPv4_blacklist = NULL;
 	IPv6_blacklist = NULL;
+	blacklist_id_free();
 }
+
+void blacklist_enable(int enable) {
+	if (enable) {
+		enabled = 1;
+	} else {
+		enabled = 0;
+	}
+}
+
+int blacklist_is_enabled() {
+	return enabled;
+}
+
+// Blacklisted ID's as linked list
+
+struct blacklisted_id {
+	unsigned char md[SHA_DIGEST_LENGTH];
+	struct blacklisted_id *next;
+};
+static struct blacklisted_id *idblacklist = NULL;
+
+int blacklist_id_blacklisted(const unsigned char *id) {
+	struct blacklisted_id * blacklist = idblacklist;
+	while (blacklist) {
+		if (memcmp(blacklist->md, id, SHA_DIGEST_LENGTH) == 0) {
+			return 1;
+		}
+		blacklist = blacklist->next;
+	}
+	return 0;
+}
+
+void blacklist_blacklist_id(const unsigned char *id) {
+	struct blacklisted_id * bid = malloc(sizeof(struct blacklisted_id));
+	memcpy(bid->md, id, SHA_DIGEST_LENGTH);
+	if (idblacklist) {
+		bid->next = idblacklist;
+	} else {
+		bid->next = NULL;
+	}
+	idblacklist = bid;
+}
+
+void blacklist_id_free() {
+	struct blacklisted_id * blacklist = idblacklist;
+	struct blacklisted_id * next;
+	while (blacklist) {
+		next = blacklist->next;
+		free(blacklist);
+		blacklist = next;
+	}
+	idblacklist = NULL;
+}
+

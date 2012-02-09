@@ -1,9 +1,14 @@
 #ifndef DTNDHT_INCLUDED
 #define DTNDHT_INCLUDED
-#include <dtndht/dht.h>
+#include <stdio.h>
+#include <sys/socket.h>
 
 enum dtn_dht_bind_type {
 	BINDNONE = 0, IPV4ONLY = 1, IPV6ONLY = 2, BINDBOTH = 3
+};
+
+enum dtn_dht_lookup_type {
+	SINGLETON = 0, NEIGHBOUR = 1, GROUP = 2
 };
 
 extern FILE *dtn_dht_debug;
@@ -16,6 +21,7 @@ struct dtn_dht_context {
 	int type;
 	const char *bind;
 	const char *bind6;
+	size_t minimum_rating;
 };
 
 struct dtn_eid {
@@ -24,9 +30,18 @@ struct dtn_eid {
 	struct dtn_eid * next;
 };
 
+struct dtn_convergence_layer_arg {
+	const char * key;
+	size_t keylen;
+	const char * value;
+	size_t valuelen;
+	struct dtn_convergence_layer_arg * next;
+};
+
 struct dtn_convergence_layer {
-	const char * cl;
-	size_t cllen;
+	const char * clname;
+	size_t clnamelen;
+	struct dtn_convergence_layer_arg * args;
 	struct dtn_convergence_layer * next;
 };
 
@@ -41,7 +56,7 @@ struct dtn_dht_lookup_result {
 // Loading previous saved buckets for faster bootstrapping
 int dtn_dht_load_prev_conf(struct dtn_dht_context *ctx, const char *filename);
 // Save acutal buckets to file for faster bootstrapping
-int dtn_dht_save_conf(struct dtn_dht_context *ctx, const char *filename);
+int dtn_dht_save_conf(const char *filename);
 
 // Generates an ID from given string. This produces a deterministic ID.
 void
@@ -75,13 +90,15 @@ void dtn_dht_blacklist(int enable);
 int dtn_dht_ready_for_work(struct dtn_dht_context *ctx);
 
 // Asynchronously lookup for the given eid and the given service
-int dtn_dht_lookup(struct dtn_dht_context *ctx, const char *md);
+int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
+		size_t eidlen, enum dtn_dht_lookup_type type);
 
 // DHT Announce
-int dtn_dht_announce(struct dtn_dht_context *ctx, const char *md);
+int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
+		size_t eidlen);
 
 // DHT Stop Announcement
-int dtn_dht_deannounce(const char *md);
+int dtn_dht_deannounce(const unsigned char *eid, size_t eidlen);
 
 // The main loop of the dht
 int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
@@ -95,13 +112,20 @@ int dtn_dht_close_sockets(struct dtn_dht_context *ctx);
 unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return,
 		unsigned int *ipv6_return);
 
+// Returns the number of nodes available, and also the good and dubious nodes
+int dtn_dht_nodes(int af, int *good_return, int *dubious_return);
+
 // callback function: Must be provided by the user
 // Lookup of an eid was successful
-void dtn_dht_handle_lookup_result(,
-		const unsigned char *cltype, size_t cllen, int ipversion,
-		struct sockaddr_storage *addr, size_t addrlen, size_t count,
-		enum dtn_dht_request_type type, int *rating);
-
+void dtn_dht_handle_lookup_result(const struct dtn_dht_lookup_result *result);
+// Actual joined groups should be returned, or NULL
+struct dtn_eid* dtn_get_groups(void);
+// Actual neighbours should be returned, or NULL
+struct dtn_eid* dtn_get_neighbours(void);
+// Actual available convergence layer should be returned, or NULL
+struct dtn_convergence_layer* dtn_get_convergence_layer(void);
+// Actual eid should be returned
+struct dtn_eid* dtn_get_EID(void);
 // functions for self implemented bootstrapping methods
 // inserting a known dht node (use this only, if you know the node.
 // Should be used carefully)

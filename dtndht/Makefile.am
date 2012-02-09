@@ -1,8 +1,8 @@
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS}
 
-include_h_sources = dtndht.h dht.h
-h_sources = $(include_h_sources) blacklist.h  bloom.h rating.h
-c_sources = dht.c implFunction.c dtndht.c blacklist.c bloom.c rating.c
+include_h_sources = dtndht.h
+h_sources = $(include_h_sources)  dht.h blacklist.h  bloom.h rating.h bootstrapping.h utils.h list.h
+c_sources = dht.c implFunction.c dtndht.c blacklist.c bloom.c rating.c bootstrapping.c utils.c list.c
 
 AM_CFLAGS = $(OPENSSL_CFLAGS)
 AM_LDFLAGS = $(OPENSSL_LIBS)

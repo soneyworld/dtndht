@@ -2683,6 +2683,24 @@ send_error(const struct sockaddr *sa, int salen,
     return -1;
 }
 
+static int send_get_info(const struct sockaddr *sa, int salen,
+          const unsigned char *tid, int tid_len, const unsigned char *md){
+    char buf[512];
+    int i = 0, rc;
+    rc = snprintf(buf + i, 512 - i, "d1:ad2:md20:"); INC(i, rc, 512);
+    COPY(buf, i, md, 20, 512);
+    rc = snprintf(buf + i, 512 - i, "e1:q3:dtn1:t%d:", tid_len);
+    INC(i, rc, 512);
+    COPY(buf, i, tid, tid_len, 512);
+    ADD_V(buf, i, 512);
+    rc = snprintf(buf + i, 512 - i, "1:y1:qe"); INC(i, rc, 512);
+    return dht_send(buf, i, 0, sa, salen);
+
+ fail:
+    errno = ENOSPC;
+    return -1;
+}
+
 #undef CHECK
 #undef INC
 #undef COPY

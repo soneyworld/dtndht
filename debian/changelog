@@ -1,3 +1,10 @@
+dtndht (0.2.0) experimental; urgency=low
+	
+  * New api design
+  	* New GetEID Message added to dht
+
+-- Till Lorentzen <lorentze@ibr.cs.tu-bs.de> Tue, 07 Feb 2012 20:00:00 +0100
+
 dtndht (0.1.7) experimental; urgency=low
 
   * New rating functions added
