@@ -51,6 +51,9 @@ static void printf_hash(const unsigned char *buf) {
 
 static struct list lookuptable;
 static struct list announcetable;
+static struct dtn_eid * myeid;
+static struct dtn_eid * myneighbours;
+static struct dtn_eid * mygroups;
 
 int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		int port);
@@ -302,13 +305,20 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 }
 
 int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
-		size_t eidlen) {
+		size_t eidlen, enum dtn_dht_lookup_type type) {
+	switch (type) {
+		case SINGLETON:
+
+			break;
+		default:
+			break;
+	}
 	unsigned char key[SHA_DIGEST_LENGTH];
 	dht_hash(key, SHA_DIGEST_LENGTH, eid, eidlen, "", 0, "", 0);
 	struct dhtentry *entry;
 	entry = getFromList(key, &announcetable);
 	if (entry == NULL) {
-		addToList(&announcetable, key, SINGLETON);
+		addToList(&announcetable, key, type);
 		if (!dtn_dht_ready_for_work(ctx))
 			return 0;
 		else {

@@ -95,7 +95,7 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 
 // DHT Announce
 int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
-		size_t eidlen);
+		size_t eidlen, enum dtn_dht_lookup_type type);
 
 // DHT Stop Announcement
 int dtn_dht_deannounce(const unsigned char *eid, size_t eidlen);
@@ -118,14 +118,10 @@ int dtn_dht_nodes(int af, int *good_return, int *dubious_return);
 // callback function: Must be provided by the user
 // Lookup of an eid was successful
 void dtn_dht_handle_lookup_result(const struct dtn_dht_lookup_result *result);
-// Actual joined groups should be returned, or NULL
-struct dtn_eid* dtn_get_groups(void);
-// Actual neighbours should be returned, or NULL
-struct dtn_eid* dtn_get_neighbours(void);
+
 // Actual available convergence layer should be returned, or NULL
 struct dtn_convergence_layer* dtn_get_convergence_layer(void);
-// Actual eid should be returned
-struct dtn_eid* dtn_get_EID(void);
+
 // functions for self implemented bootstrapping methods
 // inserting a known dht node (use this only, if you know the node.
 // Should be used carefully)
