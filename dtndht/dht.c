@@ -251,9 +251,18 @@ static int send_error(const struct sockaddr *sa, int salen,
 #define FIND_NODE 3
 #define GET_PEERS 4
 #define ANNOUNCE_PEER 5
+#define DTN_REPLY 21
+#define DTN_QUERY 20
 
 #define WANT4 1
 #define WANT6 2
+
+static int parse_dtn_message(const unsigned char *buf, int buflen,
+        unsigned char *tid_return, int *tid_len,
+        const struct dtn_eid * eid,
+        const struct dtn_eid * groups,
+        const struct dtn_eid * neighbours,
+        const struct dtn_convergence_layer * convergence_layer);
 
 static int parse_message(const unsigned char *buf, int buflen,
                          unsigned char *tid_return, int *tid_len,
@@ -1881,7 +1890,10 @@ dht_periodic(const void *buf, size_t buflen,
         int values_len = 2048, values6_len = 2048;
         int want;
         unsigned short ttid;
-
+        struct dtn_eid * eid;
+        struct dtn_eid * groups = NULL;
+        struct dtn_eid * neighbours = NULL;
+        struct dtn_convergence_layer * convergence_layer = NULL;
         if(is_martian(from))
             goto dontread;
 
@@ -1894,6 +1906,18 @@ dht_periodic(const void *buf, size_t buflen,
             debugf("Unterminated message.\n");
             errno = EINVAL;
             return -1;
+        }
+
+        message = parse_dtn_message(buf, buflen, tid, &tid_len,
+        						eid,groups,neighbours, convergence_layer);
+        if(message == DTN_REPLY || message == DTN_QUERY){
+        	switch(message){
+        	case DTN_QUERY:
+        		break;
+        	case DTN_REPLY:
+        		break;
+        	}
+        	goto dontread;
         }
 
         message = parse_message(buf, buflen, tid, &tid_len, id, info_hash,
@@ -2684,7 +2708,8 @@ send_error(const struct sockaddr *sa, int salen,
 }
 
 //  "t":"aa", "y":"q", "q":"dtn", "a":{"eid" : "dtn://my_hostname"}
-static int send_get_dtninfo(const struct sockaddr *sa, int salen,
+static int
+send_get_dtninfo(const struct sockaddr *sa, int salen,
           const unsigned char *tid, int tid_len,
           const unsigned char *eid, int eidlen){
     char buf[512];
@@ -2706,7 +2731,8 @@ static int send_get_dtninfo(const struct sockaddr *sa, int salen,
 }
 
 // "t":"aa", "y":"r", "r": {"eid":"dtn://my_hostname" , "cl":["name=TCP;ip=1.2.3.4;port=4556","name=UDP;ip=1.2.3.4;port=4556","name=TCP;ip=::1;port=4556", ...] , "nb":["eid1","eid2", ... ], "gr": ["eid1", "eid2", ...]}
-static int send_dtninfo(const struct sockaddr *sa, int salen,
+static int
+send_dtninfo(const struct sockaddr *sa, int salen,
 		const unsigned char *tid, int tid_len,
 		const unsigned char *eid, int eidlen,
 		const struct dtn_convergence_layer * cls,
@@ -2812,6 +2838,46 @@ dht_memmem(const void *haystack, size_t haystacklen,
 }
 
 #endif
+
+static int
+parse_dtn_message(const unsigned char *buf, int buflen,
+        unsigned char *tid_return, int *tid_len,
+        const struct dtn_eid * eid,
+        const struct dtn_eid * groups,
+        const struct dtn_eid * neighbours,
+        const struct dtn_convergence_layer * convergence_layer)
+{
+	int rc = -1;
+	const unsigned char *p;
+    /* This code will happily crash if the buffer is not NUL-terminated. */
+    if(buf[buflen] != '\0') {
+        debugf("Eek!  parse_message with unterminated buffer.\n");
+        return -1;
+    }
+
+#define CHECK(ptr, len)                                                 \
+    if(((unsigned char*)ptr) + (len) > (buf) + (buflen)) goto overflow;
+
+    p = dht_memmem(buf, buflen, "d1:rd2:cll",10);
+    // Parsing reply
+    if(p==buf){
+    	rc = DTN_REPLY;
+    	goto parsed;
+    }
+    p = dht_memmem(buf, buflen, "d1:ad3:eid",10);
+    if(p==buf){
+    	rc = DTN_QUERY;
+    	goto parsed;
+    }
+parsed:
+#undef CHECK
+    return rc;
+
+overflow:
+	debugf("Truncated message.\n");
+	return -1;
+}
+
 
 static int
 parse_message(const unsigned char *buf, int buflen,
