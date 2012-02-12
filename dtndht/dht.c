@@ -52,7 +52,7 @@ THE SOFTWARE.
 #endif
 
 #include "dht.h"
-
+#include "dtndht.h"
 #ifndef HAVE_MEMMEM
 #ifdef __GLIBC__
 #define HAVE_MEMMEM
@@ -2683,20 +2683,95 @@ send_error(const struct sockaddr *sa, int salen,
     return -1;
 }
 
-static int send_get_info(const struct sockaddr *sa, int salen,
-          const unsigned char *tid, int tid_len, const unsigned char *md){
+//  "t":"aa", "y":"q", "q":"dtn", "a":{"eid" : "dtn://my_hostname"}
+static int send_get_dtninfo(const struct sockaddr *sa, int salen,
+          const unsigned char *tid, int tid_len,
+          const unsigned char *eid, int eidlen){
     char buf[512];
     int i = 0, rc;
-    rc = snprintf(buf + i, 512 - i, "d1:ad2:md20:"); INC(i, rc, 512);
-    COPY(buf, i, md, 20, 512);
+    rc = snprintf(buf + i, 512 - i, "d1:ad3:eid%d:", eidlen);
+    INC(i, rc, 512);
+    COPY(buf, i, eid, eidlen, 512);
     rc = snprintf(buf + i, 512 - i, "e1:q3:dtn1:t%d:", tid_len);
     INC(i, rc, 512);
     COPY(buf, i, tid, tid_len, 512);
     ADD_V(buf, i, 512);
-    rc = snprintf(buf + i, 512 - i, "1:y1:qe"); INC(i, rc, 512);
+    rc = snprintf(buf + i, 512 - i, "1:y1:qe");
+    INC(i, rc, 512);
     return dht_send(buf, i, 0, sa, salen);
 
  fail:
+    errno = ENOSPC;
+    return -1;
+}
+
+// "t":"aa", "y":"r", "r": {"eid":"dtn://my_hostname" , "cl":["name=TCP;ip=1.2.3.4;port=4556","name=UDP;ip=1.2.3.4;port=4556","name=TCP;ip=::1;port=4556", ...] , "nb":["eid1","eid2", ... ], "gr": ["eid1", "eid2", ...]}
+static int send_dtninfo(const struct sockaddr *sa, int salen,
+		const unsigned char *tid, int tid_len,
+		const unsigned char *eid, int eidlen,
+		const struct dtn_convergence_layer * cls,
+		const struct dtn_eid * nbs,
+		const struct dtn_eid * grs){
+	char buf[4096];
+	const struct dtn_convergence_layer * cl = cls;
+	const struct dtn_eid * nb = nbs;
+	const struct dtn_eid * gr = grs;
+	struct dtn_convergence_layer_arg * arg = NULL;
+	int i=0,rc,n;
+	//Adding CLS
+	rc = snprintf(buf + i, 4096 - i, "d1:rd2:cll");
+	INC(i, rc, 4096);
+	while(cl){
+		arg = cl->args;
+		n = 0;
+		while(arg){
+			n += arg->keylen + 1 + arg->valuelen +1;
+			arg = arg->next;
+		}
+		rc = snprintf(buf + i, 4096 - i, "%d:name=%s;", 6 + (int) cl->clnamelen + n, cl->clname);
+		INC(i, rc, 4096);
+		arg = cl->args;
+		while(arg){
+			COPY(buf, i, arg->key, arg->keylen, 4096);
+			COPY(buf, i, "=", 1, 4096);
+			COPY(buf, i, arg->value, arg->valuelen, 4096);
+			COPY(buf, i, ";", 1, 4096);
+			arg = arg->next;
+		}
+		cl = cl->next;
+	}
+	// Add eid
+	rc = snprintf(buf + i, 4096 - i, "e3:eid%d:", eidlen);
+	INC(i, rc, 4096);
+	COPY(buf, i, eid, eidlen, 4096);
+	// Adding groups
+	rc = snprintf(buf + i, 4096 - i, "2:grl");
+	INC(i, rc, 4096);
+	while(gr){
+		rc = snprintf(buf + i, 4096 - i, "%d:", (int) gr->eidlen);
+		INC(i, rc, 4096);
+		COPY(buf, i, gr->eid, gr->eidlen, 4096);
+		gr = gr->next;
+	}
+	// Adding neighbours
+	rc = snprintf(buf + i, 4096 - i, "e2:nbl");
+	INC(i, rc, 4096);
+	while(nb){
+		rc = snprintf(buf + i, 4096 - i, "%d:", (int) nb->eidlen);
+		INC(i, rc, 4096);
+		COPY(buf, i, nb->eid, nb->eidlen, 4096);
+		nb = nb->next;
+	}
+	// Adding transactions id
+	rc = snprintf(buf + i, 4096 - i, "ee1:t%d:",tid_len);
+	INC(i, rc, 4096);
+	COPY(buf, i, tid, tid_len, 4096);
+	// Adding message type and closing message
+	rc = snprintf(buf + i, 4096 - i, "1:y1:re");
+	INC(i, rc, 4096);
+	return dht_send(buf, i, 0, sa, salen);
+
+fail:
     errno = ENOSPC;
     return -1;
 }

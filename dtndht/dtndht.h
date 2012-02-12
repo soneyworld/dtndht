@@ -13,23 +13,6 @@ enum dtn_dht_lookup_type {
 
 extern FILE *dtn_dht_debug;
 
-struct dtn_dht_context {
-	int ipv4socket;
-	int ipv6socket;
-	unsigned char id[20];
-	int port;
-	int type;
-	const char *bind;
-	const char *bind6;
-	size_t minimum_rating;
-};
-
-struct dtn_eid {
-	const char * eid;
-	size_t eidlen;
-	struct dtn_eid * next;
-};
-
 struct dtn_convergence_layer_arg {
 	const char * key;
 	size_t keylen;
@@ -43,6 +26,24 @@ struct dtn_convergence_layer {
 	size_t clnamelen;
 	struct dtn_convergence_layer_arg * args;
 	struct dtn_convergence_layer * next;
+};
+
+struct dtn_dht_context {
+	int ipv4socket;
+	int ipv6socket;
+	unsigned char id[20];
+	int port;
+	int type;
+	const char *bind;
+	const char *bind6;
+	size_t minimum_rating;
+	struct dtn_convergence_layer * clayer;
+};
+
+struct dtn_eid {
+	const char * eid;
+	size_t eidlen;
+	struct dtn_eid * next;
 };
 
 struct dtn_dht_lookup_result {

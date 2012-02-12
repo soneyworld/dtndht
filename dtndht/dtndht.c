@@ -120,6 +120,7 @@ int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
 	(*ctx).bind = NULL;
 	(*ctx).bind6 = NULL;
 	(*ctx).minimum_rating = 0;
+	(*ctx).clayer = NULL;
 	// generate ID
 	return (RAND_bytes((*ctx).id, SHA_DIGEST_LENGTH) == 1);
 }
