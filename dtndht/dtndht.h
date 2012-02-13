@@ -14,15 +14,15 @@ enum dtn_dht_lookup_type {
 extern FILE *dtn_dht_debug;
 
 struct dtn_convergence_layer_arg {
-	const char * key;
+	char * key;
 	size_t keylen;
-	const char * value;
+	char * value;
 	size_t valuelen;
 	struct dtn_convergence_layer_arg * next;
 };
 
 struct dtn_convergence_layer {
-	const char * clname;
+	char * clname;
 	size_t clnamelen;
 	struct dtn_convergence_layer_arg * args;
 	struct dtn_convergence_layer * next;
@@ -41,7 +41,7 @@ struct dtn_dht_context {
 };
 
 struct dtn_eid {
-	const char * eid;
+	char * eid;
 	size_t eidlen;
 	struct dtn_eid * next;
 };
@@ -119,9 +119,6 @@ int dtn_dht_nodes(int af, int *good_return, int *dubious_return);
 // callback function: Must be provided by the user
 // Lookup of an eid was successful
 void dtn_dht_handle_lookup_result(const struct dtn_dht_lookup_result *result);
-
-// Actual available convergence layer should be returned, or NULL
-struct dtn_convergence_layer* dtn_get_convergence_layer(void);
 
 // functions for self implemented bootstrapping methods
 // inserting a known dht node (use this only, if you know the node.

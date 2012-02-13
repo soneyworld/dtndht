@@ -19,7 +19,7 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
  */
-
+#include "dtndht.h"
 typedef void
 dht_callback(void *closure, int event, unsigned char *info_hash, void *data,
 		size_t data_len, const struct sockaddr *from, int fromlen);
@@ -35,8 +35,12 @@ extern FILE *dht_debug;
 int dht_init(int s, int s6, const unsigned char *id, const unsigned char *v);
 int dht_insert_node(const unsigned char *id, struct sockaddr *sa, int salen);
 int dht_ping_node(struct sockaddr *sa, int salen);
+int dht_ping_dtn_node(struct sockaddr *sa, int salen);
+int dht_add_dtn_eid(const char *eid, int eidlen, enum dtn_dht_lookup_type type);
+int dht_remove_dtn_eid(const char *eid, int eidlen);
 int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
-		int fromlen, time_t *tosleep, dht_callback *callback, void *closure);
+		int fromlen, time_t *tosleep, dht_callback *callback, void *closure,
+		const struct dtn_dht_context * ctx);
 int dht_search(const unsigned char *id, int port, int af,
 		dht_callback *callback, void *closure);
 int dht_nodes(int af, int *good_return, int *dubious_return,

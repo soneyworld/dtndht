@@ -217,6 +217,10 @@ struct peer {
 #define DTN_NODES_EXPIRE_TIME (2 * 60)
 #endif
 
+#ifndef DTN_EID_MAX_LENGTH
+#define DTN_EID_MAX_LENGTH 256
+#endif
+
 struct storage {
 	unsigned char id[20];
 	int numpeers, maxpeers;
@@ -254,6 +258,10 @@ static int send_error(const struct sockaddr *sa, int salen, unsigned char *tid,
 static int send_get_dtninfo(const struct sockaddr *sa, int salen,
 		const unsigned char *tid, int tid_len, const unsigned char *eid,
 		int eidlen);
+static int send_dtninfo(const struct sockaddr *sa, int salen,
+		const unsigned char *tid, int tid_len, const unsigned char *eid,
+		int eidlen, const struct dtn_convergence_layer * cls,
+		const struct dtn_eid * nbs, const struct dtn_eid * grs);
 
 #define ERROR 0
 #define REPLY 1
@@ -301,8 +309,11 @@ static int have_v = 0;
 static unsigned char my_v[9];
 static unsigned char secret[8];
 static unsigned char oldsecret[8];
+static struct dtn_eid * myneighbours;
+static struct dtn_eid * mygroups;
 
-static struct dtn_eid *dtn_my_eid = NULL;
+static char dtn_my_eid[DTN_EID_MAX_LENGTH+1] = "none";
+static int dtn_my_eid_len = 4;
 static struct dtn_node *dtn_nodes = NULL;
 
 static struct bucket *buckets = NULL;
@@ -1356,13 +1367,12 @@ static int rotate_secrets(void) {
 	return 1;
 }
 
-static int ping_dtn_node(struct dtn_node *node) {
-	if(!dtn_my_eid)
-		return -1;
+static int ping_dtn_node(struct dtn_node * node) {
 	int rc;
 	unsigned char tid[4];
 	make_tid(tid, "pn", node->tid);
-	rc = send_get_dtninfo((struct sockaddr*) &node->ss, node->sslen, tid, 4, dtn_my_eid->eid, dtn_my_eid->eidlen);
+
+	rc = send_get_dtninfo((struct sockaddr*) &node->ss, node->sslen, tid, 4, dtn_my_eid, dtn_my_eid_len);
 	if(rc >= 0){
 		node->pinged_time = now.tv_sec;
 		node->pinged++;
@@ -1370,6 +1380,30 @@ static int ping_dtn_node(struct dtn_node *node) {
 	return rc;
 }
 
+int dht_ping_dtn_node(struct sockaddr * sa, int salen){
+	struct dtn_node *node;
+	node = dtn_nodes;
+	while (node) {
+		if (node->ss.ss_family == sa->sa_family &&
+				node->sslen == salen &&
+				(memcmp(sa,&node->ss,salen)==0)) {
+			ping_dtn_node(node);
+			break;
+		}
+		node = node->next;
+	}
+	if(!node){
+		struct dtn_node * head = dtn_nodes;
+		struct dtn_node * newhead = (struct dtn_node*) malloc (sizeof(struct dtn_node));
+		newhead->next = head;
+		newhead->pinged = 0;
+		newhead->pinged_time = 0;
+		memcpy(&newhead->ss,sa,salen);
+		newhead->sslen = salen;
+		dtn_nodes = newhead;
+		ping_dtn_node(newhead);
+	}
+}
 #ifndef TOKEN_SIZE
 #define TOKEN_SIZE 8
 #endif
@@ -1816,7 +1850,8 @@ static int bucket_maintenance(int af) {
 }
 
 int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
-		int fromlen, time_t *tosleep, dht_callback *callback, void *closure) {
+		int fromlen, time_t *tosleep, dht_callback *callback, void *closure,
+		const struct dtn_dht_context * ctx) {
 	gettimeofday(&now, NULL);
 
 	if (buflen > 0) {
@@ -1853,8 +1888,12 @@ int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
 		if (message == DTN_REPLY || message == DTN_QUERY) {
 			switch (message) {
 			case DTN_QUERY:
+				send_dtninfo(from, fromlen, tid, tid_len,
+						dtn_my_eid, dtn_my_eid_len,ctx->clayer,
+						myneighbours, mygroups);
 				break;
 			case DTN_REPLY:
+				printf(" DTN REPLY RECEIVED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 				break;
 			}
 			goto dontread;
@@ -2244,6 +2283,72 @@ int dht_ping_node(struct sockaddr *sa, int salen) {
 	debugf("Sending ping.\n");
 	make_tid(tid, "pn", 0);
 	return send_ping(sa, salen, tid, 4);
+}
+
+int dht_set_dtn_eid(const char * eid, int eidlen) {
+	if(eidlen > DTN_EID_MAX_LENGTH){
+		debugf("Too long eid chosen -> truncating it\n");
+		eidlen = DTN_EID_MAX_LENGTH;
+	}
+	memcpy(dtn_my_eid,eid,eidlen);
+	dtn_my_eid[DTN_EID_MAX_LENGTH] = '\0';
+	return 0;
+}
+
+int dht_add_dtn_eid(const char *eid, int eidlen, enum dtn_dht_lookup_type type){
+	struct dtn_eid * list;
+	switch (type) {
+		case SINGLETON:
+			return dht_set_dtn_eid(eid, eidlen);
+			break;
+		case GROUP:
+			list = mygroups;
+			break;
+		case NEIGHBOUR:
+			list = myneighbours;
+			break;
+		default:
+			return -1;
+	}
+	struct dtn_eid * e = list;
+	while(e){
+		if(e->eidlen == eidlen && (memcmp(eid, e->eid , eidlen)==0))
+				return 0;
+		e = e->next;
+	}
+	e = (struct dtn_eid*) malloc(sizeof(struct dtn_eid));
+	e->eid = (char*) malloc(eidlen);
+	memcpy(e->eid, eid, eidlen);
+	e->eidlen = eidlen;
+	e->next = list;
+	list = e;
+	return 1;
+}
+
+int remove_dtn_eid(const char *eid, int eidlen, struct dtn_eid * list){
+	struct dtn_eid * prev = NULL;
+	struct dtn_eid * e = list;
+	while(e){
+		if(e->eidlen == eidlen && (memcmp(eid, e->eid , eidlen)==0)){
+			if(prev){
+				prev->next = e->next;
+			}else{
+				list = e->next;
+			}
+			free(e->eid);
+			free(e);
+			return 1;
+		}
+		prev = e;
+		e = e->next;
+	}
+	return 0;
+}
+
+int dht_remove_dtn_eid(const char *eid, int eidlen){
+	int rc = remove_dtn_eid(eid, eidlen, myneighbours);
+	rc += remove_dtn_eid(eid, eidlen, mygroups);
+	return rc;
 }
 
 /* We could use a proper bencoding printer and parser, but the format of

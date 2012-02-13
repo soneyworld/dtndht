@@ -51,9 +51,7 @@ static void printf_hash(const unsigned char *buf) {
 
 static struct list lookuptable;
 static struct list announcetable;
-static struct dtn_eid * myeid;
-static struct dtn_eid * myneighbours;
-static struct dtn_eid * mygroups;
+
 
 int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		int port);
@@ -107,7 +105,16 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 		}
 		break;
 	}
-	//TODO sending dht eid request
+	if (entry) {
+		struct dhtentryresult * result = entry->resultentries;
+		i = 0;
+		while (result) {
+			if (result->rating >= 1)
+				dht_ping_dtn_node((struct sockaddr*) &ss[i], fromlen);
+			result = result->next;
+			i++;
+		}
+	}
 	free(ratings);
 	free(ss);
 }
@@ -254,7 +261,7 @@ int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
 	if (dtn_dht_ready_for_work(ctx)) {
 		reannounceLists(ctx);
 	}
-	return dht_periodic(buf, buflen, from, fromlen, tosleep, callback, NULL);
+	return dht_periodic(buf, buflen, from, fromlen, tosleep, callback, NULL, ctx);
 }
 
 int dtn_dht_close_sockets(struct dtn_dht_context *ctx) {
@@ -307,13 +314,7 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 
 int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 		size_t eidlen, enum dtn_dht_lookup_type type) {
-	switch (type) {
-		case SINGLETON:
-
-			break;
-		default:
-			break;
-	}
+	dht_add_dtn_eid(eid,eidlen,type);
 	unsigned char key[SHA_DIGEST_LENGTH];
 	dht_hash(key, SHA_DIGEST_LENGTH, eid, eidlen, "", 0, "", 0);
 	struct dhtentry *entry;
@@ -337,6 +338,7 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 }
 
 int dtn_dht_deannounce(const unsigned char *eid, size_t eidlen) {
+	dht_remove_dtn_eid(eid, eidlen);
 	unsigned char key[SHA_DIGEST_LENGTH];
 	dht_hash(key, SHA_DIGEST_LENGTH, eid, eidlen, "", 0, "", 0);
 	removeFromList(key, &announcetable);
