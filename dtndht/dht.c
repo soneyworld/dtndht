@@ -125,15 +125,6 @@ static int set_nonblocking(int fd, int nonblocking) {
 #define MAX(x, y) ((x) >= (y) ? (x) : (y))
 #define MIN(x, y) ((x) <= (y) ? (x) : (y))
 
-struct dtn_node {
-	struct sockaddr_storage ss;
-	int sslen;
-	time_t pinged_time;
-	int pinged;
-	unsigned short tid;
-	struct dtn_node *next;
-};
-
 struct node {
 	unsigned char id[20];
 	struct sockaddr_storage ss;
@@ -211,10 +202,6 @@ struct peer {
 /* The time after which we consider a search to be expirable. */
 #ifndef DHT_SEARCH_EXPIRE_TIME
 #define DHT_SEARCH_EXPIRE_TIME (62 * 60)
-#endif
-
-#ifndef DTN_NODES_EXPIRE_TIME
-#define DTN_NODES_EXPIRE_TIME (2 * 60)
 #endif
 
 #ifndef DTN_EID_MAX_LENGTH
@@ -314,7 +301,6 @@ static struct dtn_eid * mygroups;
 
 static char dtn_my_eid[DTN_EID_MAX_LENGTH+1] = "none";
 static int dtn_my_eid_len = 4;
-static struct dtn_node *dtn_nodes = NULL;
 
 static struct bucket *buckets = NULL;
 static struct bucket *buckets6 = NULL;
@@ -989,24 +975,6 @@ static void expire_searches(void) {
 	}
 }
 
-static void expire_dtn_nodes(void) {
-	struct dtn_node *node = dtn_nodes, *previous = NULL;
-	while (node) {
-		struct dtn_node *next = node->next;
-		if ((node->pinged_time < now.tv_sec - DTN_NODES_EXPIRE_TIME) && node->pinged >= 3 ) {
-			if (previous)
-				previous->next = next;
-			else
-				dtn_nodes = next;
-			free(node);
-
-		} else {
-			previous = node;
-		}
-		node = next;
-	}
-}
-
 /* This must always return 0 or 1, never -1, not even on failure (see below). */
 static int search_send_get_peers(struct search *sr, struct search_node *n) {
 	struct node *node;
@@ -1367,43 +1335,13 @@ static int rotate_secrets(void) {
 	return 1;
 }
 
-static int ping_dtn_node(struct dtn_node * node) {
+int dht_ping_dtn_node(struct sockaddr * sa, int salen){
 	int rc;
 	unsigned char tid[4];
-	make_tid(tid, "pn", node->tid);
-
-	rc = send_get_dtninfo((struct sockaddr*) &node->ss, node->sslen, tid, 4, dtn_my_eid, dtn_my_eid_len);
-	if(rc >= 0){
-		node->pinged_time = now.tv_sec;
-		node->pinged++;
-	}
-	return rc;
+	make_tid(tid, "pn", 0);
+	return send_get_dtninfo(sa, salen, tid, 4, dtn_my_eid, dtn_my_eid_len);
 }
 
-int dht_ping_dtn_node(struct sockaddr * sa, int salen){
-	struct dtn_node *node;
-	node = dtn_nodes;
-	while (node) {
-		if (node->ss.ss_family == sa->sa_family &&
-				node->sslen == salen &&
-				(memcmp(sa,&node->ss,salen)==0)) {
-			ping_dtn_node(node);
-			break;
-		}
-		node = node->next;
-	}
-	if(!node){
-		struct dtn_node * head = dtn_nodes;
-		struct dtn_node * newhead = (struct dtn_node*) malloc (sizeof(struct dtn_node));
-		newhead->next = head;
-		newhead->pinged = 0;
-		newhead->pinged_time = 0;
-		memcpy(&newhead->ss,sa,salen);
-		newhead->sslen = salen;
-		dtn_nodes = newhead;
-		ping_dtn_node(newhead);
-	}
-}
 #ifndef TOKEN_SIZE
 #define TOKEN_SIZE 8
 #endif
@@ -1713,12 +1651,6 @@ int dht_uninit() {
 		free(sr);
 	}
 
-	while (dtn_nodes) {
-		struct dtn_node *node = dtn_nodes;
-		dtn_nodes = dtn_nodes->next;
-		free(node);
-	}
-
 	return 1;
 }
 
@@ -1888,7 +1820,6 @@ int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
 		if (message == DTN_REPLY || message == DTN_QUERY) {
 			switch (message) {
 			case DTN_QUERY:
-				printf(" DTN QUERY RECEIVED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 				send_dtninfo(from, fromlen, tid, tid_len,
 						dtn_my_eid, dtn_my_eid_len,ctx->clayer,
 						myneighbours, mygroups);
@@ -2114,7 +2045,6 @@ int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
 		expire_buckets(buckets6);
 		expire_storage();
 		expire_searches();
-		expire_dtn_nodes();
 	}
 
 	if (search_time > 0 && now.tv_sec >= search_time) {
@@ -2137,17 +2067,6 @@ int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
 					search_time = tm;
 			}
 			sr = sr->next;
-		}
-	}
-
-	if (ping_dtn_nodes_time > 0 && now.tv_sec >= ping_dtn_nodes_time) {
-		struct dtn_node *node;
-		node = dtn_nodes;
-		while (node) {
-			if (node->pinged < 3 && node->pinged_time + 5 <= now.tv_sec) {
-				ping_dtn_node(node);
-			}
-			node = node->next;
 		}
 	}
 
@@ -2755,7 +2674,7 @@ static int send_get_dtninfo(const struct sockaddr *sa, int salen,
 	return -1;
 }
 
-// "t":"aa", "y":"r", "r": {"eid":"dtn://my_hostname" , "cl":["name=TCP;ip=1.2.3.4;port=4556","name=UDP;ip=1.2.3.4;port=4556","name=TCP;ip=::1;port=4556", ...] , "nb":["eid1","eid2", ... ], "gr": ["eid1", "eid2", ...]}
+// "t":"aa", "y":"r", "r": {"eid":"dtn://my_hostname" , "cl":["name=TCP;port=4556","name=UDP;port=4556", ...] , "nb":["eid1","eid2", ... ], "gr": ["eid1", "eid2", ...]}
 static int send_dtninfo(const struct sockaddr *sa, int salen,
 		const unsigned char *tid, int tid_len, const unsigned char *eid,
 		int eidlen, const struct dtn_convergence_layer * cls,

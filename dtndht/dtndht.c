@@ -27,8 +27,10 @@
 #endif
 
 #ifndef REANNOUNCE_THRESHOLD
-#define REANNOUNCE_THRESHOLD 600
+#define REANNOUNCE_THRESHOLD 60
 #endif
+
+#define RATING
 
 //#define REPORT_HASHES
 //#define DEBUG_SAVING
@@ -52,7 +54,6 @@ static void printf_hash(const unsigned char *buf) {
 static struct list lookuptable;
 static struct list announcetable;
 
-
 int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		int port);
 
@@ -66,7 +67,9 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 	int i;
 	int count = 0;
 	struct sockaddr_storage *ss;
+#ifdef RATING
 	int *ratings;
+#endif
 	struct dhtentry *entry;
 	entry = getFromList(info_hash, &lookuptable);
 	if (!entry) {
@@ -83,39 +86,82 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 		count = data_len / 6;
 		ss = (struct sockaddr_storage*) malloc(
 				sizeof(struct sockaddr_storage) * count);
+#ifdef RATING
 		ratings = (int *) malloc(sizeof(int) * count);
 		memset(ratings, 0, sizeof(int) * count);
+#endif
 		for (i = 0; i < count; i++) {
 			ss[i].ss_family = AF_INET;
 			cpyvaluetosocketstorage(&ss[i], data + (i * 6), AF_INET);
+#ifdef RATING
 			entry->resultentries = get_rating(&ratings[i],
 					entry->resultentries, ss, from, fromlen);
+#endif
 		}
 		break;
 	case DHT_EVENT_VALUES6:
 		count = data_len / 18;
 		ss = malloc(sizeof(struct sockaddr_storage) * count);
+#ifdef RATING
 		ratings = (int *) malloc(sizeof(int) * count);
 		memset(ratings, 0, sizeof(int) * count);
+#endif
 		for (i = 0; i < count; i++) {
 			ss[i].ss_family = AF_INET;
 			cpyvaluetosocketstorage(&ss[i], data + (i * 18), AF_INET6);
+#ifdef RATING
 			entry->resultentries = get_rating(&ratings[i],
 					entry->resultentries, ss, from, fromlen);
+#endif
 		}
 		break;
 	}
+	i = 0;
+#ifdef RATING
 	if (entry) {
 		struct dhtentryresult * result = entry->resultentries;
-		i = 0;
 		while (result) {
-			if (result->rating >= 1)
+			if (result->rating >= 1) {
+#else
+				while(i<count) {
+#endif
+				char * buf;
+				int port;
+				switch (ss[i].ss_family) {
+				case AF_INET:
+					buf = (char*) malloc(INET_ADDRSTRLEN);
+					inet_ntop(ss[i].ss_family,
+							&((struct sockaddr_in *) &ss[i])->sin_addr, buf,
+							INET_ADDRSTRLEN);
+					port = ((struct sockaddr_in *) &ss[i])->sin_port;
+					printf("sending dtn ping to host: %s %d\n", buf,
+							ntohs(port));
+					free(buf);
+					break;
+				case AF_INET6:
+					buf = (char*) malloc(INET6_ADDRSTRLEN);
+					inet_ntop(ss[i].ss_family,
+							&((struct sockaddr_in6 *) &ss[i])->sin6_addr, buf,
+							INET6_ADDRSTRLEN);
+					port = ((struct sockaddr_in6 *) &ss[i])->sin6_port;
+					printf("sending dtn ping to host: %s %d\n", buf,
+							ntohs(port));
+					free(buf);
+					break;
+				}
 				dht_ping_dtn_node((struct sockaddr*) &ss[i], fromlen);
-			result = result->next;
+#ifdef RATING
+			}
+#endif
 			i++;
+#ifdef RATING
+			result = result->next;
 		}
 	}
 	free(ratings);
+#else
+	}
+#endif
 	free(ss);
 }
 
@@ -261,7 +307,8 @@ int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
 	if (dtn_dht_ready_for_work(ctx)) {
 		reannounceLists(ctx);
 	}
-	return dht_periodic(buf, buflen, from, fromlen, tosleep, callback, NULL, ctx);
+	return dht_periodic(buf, buflen, from, fromlen, tosleep, callback, NULL,
+			ctx);
 }
 
 int dtn_dht_close_sockets(struct dtn_dht_context *ctx) {
@@ -314,7 +361,7 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
 
 int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 		size_t eidlen, enum dtn_dht_lookup_type type) {
-	dht_add_dtn_eid(eid,eidlen,type);
+	dht_add_dtn_eid(eid, eidlen, type);
 	unsigned char key[SHA_DIGEST_LENGTH];
 	dht_hash(key, SHA_DIGEST_LENGTH, eid, eidlen, "", 0, "", 0);
 	struct dhtentry *entry;
@@ -327,12 +374,7 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 			return dtn_dht_search(ctx, key, ctx->port);
 		}
 	} else {
-		entry->updatetime = time(NULL);
-		if (!dtn_dht_ready_for_work(ctx))
-			return 0;
-		else {
-			return dtn_dht_search(ctx, key, ctx->port);
-		}
+		return 0;
 	}
 	return 1;
 }
