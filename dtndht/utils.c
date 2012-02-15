@@ -22,12 +22,11 @@ int cpyvaluetosocketstorage(struct sockaddr_storage *target, const void *value,
 		sa_in->sin_port = 0;
 		memcpy(&(sa_in->sin_addr), value, 4);
 		memcpy(&(sa_in->sin_port), value + 4, 2);
-		sa_in->sin_port = ntohs(sa_in->sin_port);
 	} else if (type == AF_INET6) {
 		struct sockaddr_in6* sa_in = (struct sockaddr_in6*) target;
+		sa_in->sin6_port = 0;
 		memcpy(&(sa_in->sin6_addr), value, 16);
 		memcpy(&(sa_in->sin6_port), value + 16, 2);
-		sa_in->sin6_port = ntohs(sa_in->sin6_port);
 	}
 	return 0;
 }
