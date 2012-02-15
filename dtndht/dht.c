@@ -1888,6 +1888,7 @@ int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
 		if (message == DTN_REPLY || message == DTN_QUERY) {
 			switch (message) {
 			case DTN_QUERY:
+				printf(" DTN QUERY RECEIVED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 				send_dtninfo(from, fromlen, tid, tid_len,
 						dtn_my_eid, dtn_my_eid_len,ctx->clayer,
 						myneighbours, mygroups);
@@ -2291,7 +2292,8 @@ int dht_set_dtn_eid(const char * eid, int eidlen) {
 		eidlen = DTN_EID_MAX_LENGTH;
 	}
 	memcpy(dtn_my_eid,eid,eidlen);
-	dtn_my_eid[DTN_EID_MAX_LENGTH] = '\0';
+	dtn_my_eid[eidlen] = '\0';
+	dtn_my_eid_len = eidlen;
 	return 0;
 }
 
@@ -2872,18 +2874,20 @@ static int parse_dtn_message(const unsigned char *buf, int buflen,
 
 #define CHECK(ptr, len)                                                 \
     if(((unsigned char*)ptr) + (len) > (buf) + (buflen)) goto overflow;
-
-	p = dht_memmem(buf, buflen, "d1:rd2:cll", 10);
-	// Parsing reply
-	if (p == buf) {
-		rc = DTN_REPLY;
-		goto parsed;
-	}
 	p = dht_memmem(buf, buflen, "d1:ad3:eid", 10);
+	// Parsing query
 	if (p == buf) {
 		rc = DTN_QUERY;
 		goto parsed;
 	}
+	p = dht_memmem(buf, buflen, "d1:rd2:cll", 10);
+	// Parsing reply
+	if (p == buf) {
+		rc = DTN_REPLY;
+
+		goto parsed;
+	}
+
 	parsed:
 #undef CHECK
 	return rc;
