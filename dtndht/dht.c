@@ -263,9 +263,10 @@ static int send_dtninfo(const struct sockaddr *sa, int salen,
 #define WANT6 2
 
 static int parse_dtn_message(const unsigned char *buf, int buflen,
-		unsigned char *tid_return, int *tid_len, const struct dtn_eid * eid,
-		const struct dtn_eid * groups, const struct dtn_eid * neighbours,
-		const struct dtn_convergence_layer * convergence_layer);
+		const struct sockaddr *from, int fromlen,
+		unsigned char *tid_return, int *tid_len, struct dtn_eid * eid,
+		struct dtn_eid * groups, struct dtn_eid * neighbours,
+		struct dtn_convergence_layer * convergence_layer);
 
 static int parse_message(const unsigned char *buf, int buflen,
 		unsigned char *tid_return, int *tid_len, unsigned char *id_return,
@@ -1815,7 +1816,8 @@ int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
 			return -1;
 		}
 
-		message = parse_dtn_message(buf, buflen, tid, &tid_len, eid, groups,
+		message = parse_dtn_message(buf, buflen, from,
+				fromlen, tid, &tid_len, eid, groups,
 				neighbours, convergence_layer);
 		if (message == DTN_REPLY || message == DTN_QUERY) {
 			switch (message) {
@@ -2695,9 +2697,11 @@ static int send_dtninfo(const struct sockaddr *sa, int salen,
 			n += arg->keylen + 1 + arg->valuelen + 1;
 			arg = arg->next;
 		}
-		rc = snprintf(buf + i, 4096 - i, "%d:name=%s;",
-				6 + (int) cl->clnamelen + n, cl->clname);
+		rc = snprintf(buf + i, 4096 - i, "%d:name=",
+				6 + (int) cl->clnamelen + n);
 		INC(i, rc, 4096);
+		COPY(buf, i, cl->clname, cl->clnamelen, 4096);
+		COPY(buf, i, ";", 1, 4096);
 		arg = cl->args;
 		while (arg) {
 			COPY(buf, i, arg->key, arg->keylen, 4096);
@@ -2780,10 +2784,13 @@ dht_memmem(const void *haystack, size_t haystacklen, const void *needle,
 #endif
 
 static int parse_dtn_message(const unsigned char *buf, int buflen,
-		unsigned char *tid_return, int *tid_len, const struct dtn_eid * eid,
-		const struct dtn_eid * groups, const struct dtn_eid * neighbours,
-		const struct dtn_convergence_layer * convergence_layer) {
+		const struct sockaddr *from, int fromlen,
+		unsigned char *tid_return, int *tid_len, struct dtn_eid * eid,
+		struct dtn_eid * groups, struct dtn_eid * neighbours,
+		struct dtn_convergence_layer * convergence_layer) {
 	int rc = -1;
+	long l;
+	char *q, *end;
 	const unsigned char *p;
 	/* This code will happily crash if the buffer is not NUL-terminated. */
 	if (buf[buflen] != '\0') {
@@ -2793,17 +2800,59 @@ static int parse_dtn_message(const unsigned char *buf, int buflen,
 
 #define CHECK(ptr, len)                                                 \
     if(((unsigned char*)ptr) + (len) > (buf) + (buflen)) goto overflow;
+
+
 	p = dht_memmem(buf, buflen, "d1:ad3:eid", 10);
 	// Parsing query
 	if (p == buf) {
 		rc = DTN_QUERY;
+		l = strtol((char*) p + 10, &q, 10);
+		if (q && *q == ':' && l > 0 ) {
+			CHECK(q + 1, l);
+			eid = (struct dtn_eid*) malloc(sizeof(struct dtn_eid));
+			memcpy(eid->eid, q + 1, l);
+			eid->eidlen = l;
+		} else {
+			eid=NULL;
+		}
+		if (tid_return) {
+			p = dht_memmem(buf, buflen, "ee1:t", 5);
+			if (p) {
+				long l;
+				char *q;
+				l = strtol((char*) p + 5, &q, 10);
+				if (q && *q == ':' && l > 0 && l < *tid_len) {
+					CHECK(q + 1, l);
+					memcpy(tid_return, q + 1, l);
+					*tid_len = l;
+				} else
+					*tid_len = 0;
+			}
+		}
 		goto parsed;
 	}
 	p = dht_memmem(buf, buflen, "d1:rd2:cll", 10);
 	// Parsing reply
 	if (p == buf) {
 		rc = DTN_REPLY;
-
+		//TODO Parse convergence layer
+		l = strtol((char*) p + 10, &q, 10);
+		if (q && *q == ':' && l > 0 ) {
+			CHECK(q + 1, l);
+			convergence_layer = (struct dtn_convergence_layer*) malloc(sizeof(struct dtn_convergence_layer));
+			end = dht_memmem(q, l, ";", 1);
+			memcpy(convergence_layer->clname, q + 5, q+5-end);
+			convergence_layer->clnamelen = q+5-end;
+			//TODO copy string to new array and tokenize it to args
+			char ipnd_str[l-6-(q-end)];
+			memcpy(ipnd_str,q+6+(q-end),l-6-(q-end));
+		} else {
+			convergence_layer = NULL;
+		}
+		//TODO Parse eid
+		//TODO Parse neighbours
+		//TODO Parse groups
+		//TODO Parse tid
 		goto parsed;
 	}
 
