@@ -93,20 +93,38 @@ PKG_CHECK_MODULES(OPENSSL, [openssl],[
 AM_CONDITIONAL(OPENSSL, test x$use_openssl = xyes)
 
 dnl -----------------------------------------------
-dnl optional parameter: double lookup mechanism
+dnl optional parameter: blacklist mechanism
 dnl -----------------------------------------------
 
-AC_ARG_WITH(doublelookup,
-	AS_HELP_STRING([--with-doublelookup], [build with double lookup support
+AC_ARG_WITH(blacklist,
+	AS_HELP_STRING([--with-blacklist], [build with blacklist support
 		@<:@default=no@:>@]),
 	[
-	if test "x$with_doublelookup" = "xyes"; then
-		AC_DEFINE(WITH_DOUBLE_LOOKUP, [1], ["double lookup support enabled"])
+	if test "x$with_blacklist" = "xyes"; then
+		AC_DEFINE(BLACKLIST_SUPPORT, [1], ["blacklist support enabled"])
 	fi
 	],[]
 )
 	
-AM_CONDITIONAL(DOUBLELOOKUP, test x$with_doublelookup = xyes)
+AM_CONDITIONAL(BLACKLIST_SUPPORT, test x$with_blacklist = xyes)
+
+dnl -----------------------------------------------
+dnl optional parameter: rating mechanism
+dnl -----------------------------------------------
+
+AC_ARG_WITH(rating,
+	AS_HELP_STRING([--with-rating], [build with rating support
+		@<:@default=no@:>@]),
+	[
+	if test "x$with_rating" = "xyes"; then
+		AC_DEFINE(RATING_SUPPORT, [1], ["rating support enabled"])
+	fi
+	],[]
+)
+	
+AM_CONDITIONAL(RATING_SUPPORT, test x$with_rating = xyes)
+
+
 
 AC_CONFIG_FILES([Makefile \
 	dtndht/Makefile \

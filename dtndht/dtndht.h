@@ -55,7 +55,7 @@ struct dtn_dht_lookup_result {
 };
 
 // Loading previous saved buckets for faster bootstrapping
-int dtn_dht_load_prev_conf(struct dtn_dht_context *ctx, const char *filename);
+int dtn_dht_load_prev_conf(const char *filename);
 // Save acutal buckets to file for faster bootstrapping
 int dtn_dht_save_conf(const char *filename);
 
@@ -91,15 +91,15 @@ void dtn_dht_blacklist(int enable);
 int dtn_dht_ready_for_work(struct dtn_dht_context *ctx);
 
 // Asynchronously lookup for the given eid and the given service
-int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
-		size_t eidlen, enum dtn_dht_lookup_type type);
+int dtn_dht_lookup(struct dtn_dht_context *ctx, const char *eid,
+		size_t eidlen);
 
 // DHT Announce
-int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
+int dtn_dht_announce(struct dtn_dht_context *ctx, const char *eid,
 		size_t eidlen, enum dtn_dht_lookup_type type);
 
 // DHT Stop Announcement
-int dtn_dht_deannounce(const unsigned char *eid, size_t eidlen);
+int dtn_dht_deannounce(const char *eid, size_t eidlen);
 
 // The main loop of the dht
 int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,

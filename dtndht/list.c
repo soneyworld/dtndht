@@ -7,6 +7,7 @@
 #include "list.h"
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 void cleanUpList(struct list *table, int threshold) {
 	int isempty = 1;
@@ -24,7 +25,6 @@ void cleanUpList(struct list *table, int threshold) {
 			} else {
 				table->head = NULL;
 			}
-			free_rating(pos->resultentries);
 			free(pos);
 			if (prev != NULL) {
 				pos = prev->next;
@@ -46,10 +46,9 @@ void cleanUpList(struct list *table, int threshold) {
 
 int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 		int threshold) {
-	int rc = 0, result = 0, i = 0;
+	int rc, result = 0;
 	struct dhtentry *pos = table->head;
 	while (pos != NULL) {
-		i++;
 		time_t acttime = time(NULL);
 		time_t lastupdate = pos->updatetime;
 		if ((lastupdate + threshold) < acttime) {
@@ -65,14 +64,12 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 	return result;
 }
 
-void addToList(struct list *table, const unsigned char *key,
-		enum dtn_dht_lookup_type type) {
+void addToList(struct list *table, const unsigned char *key) {
 	struct dhtentry *newentry;
 	newentry = (struct dhtentry*) malloc(sizeof(struct dhtentry));
 	memcpy(newentry->md, key, SHA_DIGEST_LENGTH);
 	newentry->next = table->head;
 	newentry->updatetime = time(NULL);
-	newentry->resultentries = NULL;
 	table->head = newentry;
 }
 
@@ -89,7 +86,6 @@ void removeFromList(const unsigned char *key, struct list *table) {
 					prev->next = NULL;
 				}
 			}
-			free_rating(pos->resultentries);
 			free(pos);
 			break;
 		}

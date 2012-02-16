@@ -8,6 +8,9 @@
 #include "bootstrapping.h"
 #include "dtndht.h"
 
+static int dht_has_been_ready = 0;
+
+
 int bootstrapping_dns(struct dtn_dht_context *ctx, const char* name,
 		const char* service) {
 	struct addrinfo hints;
@@ -70,7 +73,7 @@ int bootstrapping_dns(struct dtn_dht_context *ctx, const char* name,
 	return rc;
 }
 
-int bootstrapping_load_conf(struct dtn_dht_context *ctx, const char *filename) {
+int bootstrapping_load_conf(const char *filename) {
 	FILE *fp;
 	fp = fopen(filename, "r");
 	if (fp == NULL) {
@@ -94,8 +97,7 @@ int bootstrapping_load_conf(struct dtn_dht_context *ctx, const char *filename) {
 	psep = memchr(inputbuf, 0, inputlen - 19);
 	while (psep != NULL) {
 		if (memcmp(psep, separator, 20) == 0) {
-			struct sockaddr sa;
-			int salen, i;
+			int i;
 			int numberOfIPv4 = (psep - inputbuf) / 6;
 			int numberOfIPv6 = (inputlen - ((psep - inputbuf) + 20)) / 18;
 			for (i = 0; i < numberOfIPv4; i++) {
@@ -133,9 +135,12 @@ int bootstrapping_save_conf(const char *filename) {
 	struct sockaddr_in6 sins6[300];
 	char separator[20];
 	memset(separator, 0, 20);
-	int i, written, to_be_written, n, num = 300, num6 = 300;
-	n = dht_get_nodes(sins, &num, sins6, &num6);
-#ifdef DEBUG_SAVING
+	int i, written, to_be_written, num = 300, num6 = 300;
+#ifndef DEBUG_SAVING
+	dht_get_nodes(sins, &num, sins6, &num6);
+#else
+
+	int n = dht_get_nodes(sins, &num, sins6, &num6);
 	printf("Saving %d (%d + %d) nodes\n", n, num, num6);
 #endif
 	for (i = 0; i < num; i++) {
@@ -212,9 +217,12 @@ void bootstrapping_start_random_lookup(struct dtn_dht_context *ctx,
 		dht_callback *callback) {
 	unsigned char randomhash[SHA_DIGEST_LENGTH];
 	dht_random_bytes(&randomhash, SHA_DIGEST_LENGTH);
+#ifdef BLACKLIST_SUPPORT
 	if (blacklist_is_enabled()) {
 		blacklist_blacklist_id(randomhash);
 	}
+#endif
+
 	if ((*ctx).ipv4socket >= 0) {
 		dht_search(randomhash, 0, AF_INET, callback, NULL);
 	}

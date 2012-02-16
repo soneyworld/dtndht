@@ -6,7 +6,9 @@
  */
 
 #include "rating.h"
-#include <openssl/sha.h>
+#include <time.h>
+
+static struct dht_rating_entry * list = NULL;
 
 unsigned int hash1(const char *key) {
 	return (unsigned int) key[0];
@@ -50,15 +52,16 @@ int sockaddr_storage_equals(const struct sockaddr_storage *ss1,
 	return 0;
 }
 
-struct dhtentryresult* rating_create(const struct sockaddr_storage *ss,
+struct dht_result_rating * rating_create(const struct sockaddr_storage *ss,
 		const struct sockaddr *from, int fromlen) {
 	unsigned char md[SHA_DIGEST_LENGTH];
-	struct dhtentryresult * result;
-	result = (struct dhtentryresult*) malloc(sizeof(struct dhtentryresult));
+	struct dht_result_rating * result;
+	result = (struct dht_result_rating*) malloc(
+			sizeof(struct dht_result_rating));
 	result->frombloom = bloom_create(96, 7, hash1, hash2, hash3, hash4, hash5,
 			hash6, hash7);
 	SHA1((const unsigned char*) from, fromlen, md);
-	bloom_add(result->frombloom, md);
+	bloom_add(result->frombloom, (const char*) md);
 	result->next = NULL;
 	result->rating = 0;
 	result->ss = malloc(sizeof(struct sockaddr_storage));
@@ -76,59 +79,73 @@ struct dhtentryresult* rating_create(const struct sockaddr_storage *ss,
 	}
 	return result;
 }
-#ifdef WITH_DOUBLE_LOOKUP
-int get_rating_of_sockaddr_storage(struct dhtentryresult *head,
-		const struct sockaddr_storage *ss) {
-	struct dhtentryresult * result = head;
-	while (result) {
-		if (sockaddr_storage_equals(result->ss, ss)) {
-			return result->rating;
-		}
-		result = result->next;
-	}
-	return -1;
-}
-#endif
-struct dhtentryresult* get_rating(int * rating, struct dhtentryresult *head,
-		const struct sockaddr_storage *ss, const struct sockaddr *from,
+
+void rating_create_entry(unsigned char *info_hash,
+		const struct sockaddr_storage *target, const struct sockaddr *from,
 		int fromlen) {
-	struct dhtentryresult * result = head;
-	if (!result) {
-		// Head is empty, create a new one
-		result = rating_create(ss, from, fromlen);
-		(*rating) = result->rating;
-		return result;
-	}
-	unsigned char md[SHA_DIGEST_LENGTH];
-	struct dhtentryresult * prev = NULL;
-	while (result) {
-		if (sockaddr_storage_equals(result->ss, ss)) {
-			if (result->rating < 10) {
-				SHA1((const unsigned char*) from, fromlen, md);
-				if (!bloom_check(result->frombloom, md)) {
-					bloom_add(result->frombloom, md);
-					result->rating++;
-				}
-			}
-			(*rating) = result->rating;
-			return head;
-		}
-		prev = result;
-		result = result->next;
-	}
-	// If not found yet, add to list!
-	prev->next = rating_create(ss, from, fromlen);
-	(*rating) = prev->next->rating;
-	return head;
+	struct dht_rating_entry * newentry = (struct dht_rating_entry*) malloc(
+			sizeof(struct dht_rating_entry));
+	newentry->next = list;
+	newentry->updated = time(NULL);
+	memcpy(newentry->key, info_hash, SHA_DIGEST_LENGTH);
+	newentry->ratings = rating_create(target, from, fromlen);
+	list = newentry;
 }
 
-void free_rating(struct dhtentryresult *head) {
-	struct dhtentryresult * next;
+int get_rating(unsigned char *info_hash, const struct sockaddr_storage *target,
+		const struct sockaddr *from, int fromlen) {
+	struct dht_rating_entry * entry = list;
+	while (entry) {
+		if (memcmp(entry->key, info_hash, SHA_DIGEST_LENGTH) == 0) {
+			break;
+		}
+		entry = entry->next;
+	}
+	if (entry) {
+		struct dht_result_rating * pos = entry->ratings;
+		struct dht_result_rating * prev = NULL;
+		while (pos) {
+			if (sockaddr_storage_equals(pos->ss, target)) {
+				entry->updated = time(NULL);
+				if (pos->rating < 10) {
+					unsigned char md[SHA_DIGEST_LENGTH];
+					SHA1((const unsigned char*) from, fromlen, md);
+					if (!bloom_check(pos->frombloom, (const char*) md)) {
+						bloom_add(pos->frombloom,(const char*) md);
+						pos->rating++;
+					}
+				}
+				return pos->rating;
+			}
+			prev = pos;
+			pos = pos->next;
+		}
+		prev->next = rating_create(target, from, fromlen);
+		return 0;
+	} else {
+		rating_create_entry(info_hash, target, from, fromlen);
+		return 0;
+	}
+}
+
+void free_rating(struct dht_result_rating *head) {
+	struct dht_result_rating * next;
 	while (head) {
 		next = head->next;
 		bloom_destroy(head->frombloom);
 		free(head->ss);
 		free(head);
 		head = next;
+	}
+}
+
+void free_ratings() {
+	struct dht_rating_entry * entry = list;
+	struct dht_rating_entry * next = NULL;
+	while (entry != NULL) {
+		next = entry->next;
+		free_rating(entry->ratings);
+		free(entry);
+		entry = next;
 	}
 }

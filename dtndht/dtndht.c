@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <time.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <openssl/rand.h>
@@ -12,16 +13,20 @@
 #include "dht.h"
 #include "config.h"
 #include "dtndht.h"
-#include "blacklist.h"
-#include "rating.h"
 #include "bootstrapping.h"
 #include "utils.h"
 #include "list.h"
 #include <openssl/sha.h>
 #include <netinet/in.h>
-#ifdef WITH_DOUBLE_LOOKUP
-#include "doublelookup.h"
+
+#ifdef RATING_SUPPORT
+#include "rating.h"
 #endif
+
+#ifdef BLACKLIST_SUPPORT
+#include "blacklist.h"
+#endif
+
 #ifndef LOOKUP_THRESHOLD
 #define LOOKUP_THRESHOLD 1800
 #endif
@@ -30,11 +35,8 @@
 #define REANNOUNCE_THRESHOLD 60
 #endif
 
-#define RATING
-
-//#define REPORT_HASHES
-//#define DEBUG_SAVING
-//#define DEBUG
+#define REPORT_HASHES
+#define DEBUG
 
 #ifdef DEBUG
 #ifndef REPORT_HASHES
@@ -51,8 +53,8 @@ static void printf_hash(const unsigned char *buf) {
 }
 #endif
 
-static struct list lookuptable;
 static struct list announcetable;
+static struct list lookuptable;
 
 int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		int port);
@@ -67,18 +69,18 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 	int i;
 	int count = 0;
 	struct sockaddr_storage *ss;
-#ifdef RATING
+#ifdef RATING_SUPPORT
 	int *ratings;
 #endif
-	struct dhtentry *entry;
-	entry = getFromList(info_hash, &lookuptable);
-	if (!entry) {
-		// Not requested entry found -> blacklist sender
-		if (blacklist_is_enabled()) {
-			if (blacklist_id_blacklisted(info_hash)) {
-				blacklist_blacklist_node(from, info_hash);
-			}
+#ifdef BLACKLIST_SUPPORT
+	if (blacklist_is_enabled()) {
+		if (blacklist_id_blacklisted(info_hash)) {
+			blacklist_blacklist_node(from, info_hash);
+			return;
 		}
+	}
+#endif
+	if (getFromList(info_hash, &lookuptable) == NULL) {
 		return;
 	}
 	switch (event) {
@@ -86,81 +88,74 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 		count = data_len / 6;
 		ss = (struct sockaddr_storage*) malloc(
 				sizeof(struct sockaddr_storage) * count);
-#ifdef RATING
+#ifdef RATING_SUPPORT
 		ratings = (int *) malloc(sizeof(int) * count);
 		memset(ratings, 0, sizeof(int) * count);
 #endif
 		for (i = 0; i < count; i++) {
 			ss[i].ss_family = AF_INET;
 			cpyvaluetosocketstorage(&ss[i], data + (i * 6), AF_INET);
-#ifdef RATING
-			entry->resultentries = get_rating(&ratings[i],
-					entry->resultentries, ss, from, fromlen);
+#ifdef RATING_SUPPORT
+			ratings[i] = get_rating(info_hash, ss, from, fromlen);
 #endif
 		}
 		break;
 	case DHT_EVENT_VALUES6:
 		count = data_len / 18;
 		ss = malloc(sizeof(struct sockaddr_storage) * count);
-#ifdef RATING
+#ifdef RATING_SUPPORT
 		ratings = (int *) malloc(sizeof(int) * count);
 		memset(ratings, 0, sizeof(int) * count);
 #endif
 		for (i = 0; i < count; i++) {
 			ss[i].ss_family = AF_INET;
 			cpyvaluetosocketstorage(&ss[i], data + (i * 18), AF_INET6);
-#ifdef RATING
-			entry->resultentries = get_rating(&ratings[i],
-					entry->resultentries, ss, from, fromlen);
+#ifdef RATING_SUPPORT
+			ratings[i] = get_rating(info_hash, ss, from, fromlen);
 #endif
 		}
 		break;
 	}
-	i = 0;
-#ifdef RATING
-	if (entry) {
-		struct dhtentryresult * result = entry->resultentries;
-		while (result) {
-			if (result->rating >= 1) {
-#else
-				while(i<count) {
+#ifdef REPORT_HASHES
+	printf("Values found (%d) for ", count);
+	printf_hash(info_hash);
+	printf("\n");
 #endif
-				char * buf;
-				int port;
-				switch (ss[i].ss_family) {
-				case AF_INET:
-					buf = (char*) malloc(INET_ADDRSTRLEN);
-					inet_ntop(ss[i].ss_family,
-							&((struct sockaddr_in *) &ss[i])->sin_addr, buf,
-							INET_ADDRSTRLEN);
-					port = ((struct sockaddr_in *) &ss[i])->sin_port;
-					printf("sending dtn ping to host: %s %d\n", buf,
-							ntohs(port));
-					free(buf);
-					break;
-				case AF_INET6:
-					buf = (char*) malloc(INET6_ADDRSTRLEN);
-					inet_ntop(ss[i].ss_family,
-							&((struct sockaddr_in6 *) &ss[i])->sin6_addr, buf,
-							INET6_ADDRSTRLEN);
-					port = ((struct sockaddr_in6 *) &ss[i])->sin6_port;
-					printf("sending dtn ping to host: %s %d\n", buf,
-							ntohs(port));
-					free(buf);
-					break;
-				}
-				dht_ping_dtn_node((struct sockaddr*) &ss[i], fromlen);
-#ifdef RATING
+	for (i = 0; i < count; i++) {
+#ifdef RATING_SUPPORT
+		if (ratings[i] >= 1) {
+#endif
+#ifdef DEBUG
+			char * buf;
+			int port;
+			switch (ss[i].ss_family) {
+			case AF_INET:
+				buf = (char*) malloc(INET_ADDRSTRLEN);
+				inet_ntop(ss[i].ss_family,
+						&((struct sockaddr_in *) &ss[i])->sin_addr, buf,
+						INET_ADDRSTRLEN);
+				port = ((struct sockaddr_in *) &ss[i])->sin_port;
+				printf("sending dtn ping to host: %s %d\n", buf, ntohs(port));
+				free(buf);
+				break;
+			case AF_INET6:
+				buf = (char*) malloc(INET6_ADDRSTRLEN);
+				inet_ntop(ss[i].ss_family,
+						&((struct sockaddr_in6 *) &ss[i])->sin6_addr, buf,
+						INET6_ADDRSTRLEN);
+				port = ((struct sockaddr_in6 *) &ss[i])->sin6_port;
+				printf("sending dtn ping to host: %s %d\n", buf, ntohs(port));
+				free(buf);
+				break;
 			}
 #endif
-			i++;
-#ifdef RATING
-			result = result->next;
+			dht_ping_dtn_node((struct sockaddr*) &ss[i], fromlen);
+#ifdef RATING_SUPPORT
 		}
+#endif
 	}
+#ifdef RATING_SUPPORT
 	free(ratings);
-#else
-	}
 #endif
 	free(ss);
 }
@@ -179,8 +174,8 @@ int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
 }
 
 int dtn_dht_init(struct dtn_dht_context *ctx) {
-	lookuptable.head = NULL;
 	announcetable.head = NULL;
+	lookuptable.head = NULL;
 	return dht_init((*ctx).ipv4socket, (*ctx).ipv6socket, (*ctx).id, NULL);
 }
 
@@ -289,24 +284,25 @@ int dtn_dht_init_sockets(struct dtn_dht_context *ctx) {
 	return rc;
 }
 
-int reannounceLists(struct dtn_dht_context *ctx) {
-	reannounceList(ctx, &announcetable, REANNOUNCE_THRESHOLD);
-}
-
 int dtn_dht_uninit(void) {
-	cleanUpList(&lookuptable, -1);
+#ifdef RATING_SUPPORT
+	free_ratings();
+#endif
 	cleanUpList(&announcetable, -1);
+	cleanUpList(&lookuptable, -1);
+#ifdef BLACKLIST_SUPPORT
 	blacklist_free();
+#endif
 	return dht_uninit();
 }
 
 int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
 		size_t buflen, const struct sockaddr *from, int fromlen,
 		time_t *tosleep) {
-	cleanUpList(&lookuptable, LOOKUP_THRESHOLD);
-	if (dtn_dht_ready_for_work(ctx)) {
-		reannounceLists(ctx);
+	if (dtn_dht_ready_for_work(ctx) >= 2) {
+		reannounceList(ctx, &announcetable, REANNOUNCE_THRESHOLD);
 	}
+	cleanUpList(&lookuptable, LOOKUP_THRESHOLD);
 	return dht_periodic(buf, buflen, from, fromlen, tosleep, callback, NULL,
 			ctx);
 }
@@ -323,6 +319,13 @@ int dtn_dht_close_sockets(struct dtn_dht_context *ctx) {
 
 int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		int port) {
+#ifdef REPORT_HASHES
+	if (port > 0) {
+		printf("Announcing: ");
+		printf_hash(id);
+		printf("\n");
+	}
+#endif
 	int rc = 0;
 	switch (ctx->type) {
 	case BINDBOTH:
@@ -342,24 +345,27 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 	return rc;
 }
 
-int dtn_dht_lookup(struct dtn_dht_context *ctx, const unsigned char *eid,
-		size_t eidlen, enum dtn_dht_lookup_type type) {
+int dtn_dht_lookup(struct dtn_dht_context *ctx, const char *eid, size_t eidlen) {
 	if (!dtn_dht_ready_for_work(ctx))
 		return 0;
 	unsigned char key[SHA_DIGEST_LENGTH];
 	dht_hash(key, SHA_DIGEST_LENGTH, eid, eidlen, "", 0, "", 0);
-	struct dhtentry *entry = getFromList(key, &lookuptable);
+#ifdef REPORT_HASHES
+	printf("Lookup %s: ", eid);
+	printf_hash(key);
+	printf("\n");
+#endif
+	struct dhtentry *entry;
+	entry = getFromList(key, &lookuptable);
 	if (entry == NULL) {
-		addToList(&lookuptable, key, type);
-		return dtn_dht_search(ctx, key, 0);
+		addToList(&lookuptable, key);
 	} else {
 		entry->updatetime = time(NULL);
-		return dtn_dht_search(ctx, key, 0);
 	}
-	return 1;
+	return dtn_dht_search(ctx, key, 0);
 }
 
-int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
+int dtn_dht_announce(struct dtn_dht_context *ctx, const char *eid,
 		size_t eidlen, enum dtn_dht_lookup_type type) {
 	dht_add_dtn_eid(eid, eidlen, type);
 	unsigned char key[SHA_DIGEST_LENGTH];
@@ -367,19 +373,24 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const unsigned char *eid,
 	struct dhtentry *entry;
 	entry = getFromList(key, &announcetable);
 	if (entry == NULL) {
-		addToList(&announcetable, key, type);
-		if (!dtn_dht_ready_for_work(ctx))
+		addToList(&announcetable, key);
+		if (!dtn_dht_ready_for_work(ctx)) {
+			entry->updatetime = 0;
 			return 0;
-		else {
+		} else {
+#ifdef REPORT_HASHES
+			printf("Announce %s: ", eid);
+			printf_hash(key);
+			printf("\n");
+#endif
 			return dtn_dht_search(ctx, key, ctx->port);
 		}
 	} else {
 		return 0;
 	}
-	return 1;
 }
 
-int dtn_dht_deannounce(const unsigned char *eid, size_t eidlen) {
+int dtn_dht_deannounce(const char *eid, size_t eidlen) {
 	dht_remove_dtn_eid(eid, eidlen);
 	unsigned char key[SHA_DIGEST_LENGTH];
 	dht_hash(key, SHA_DIGEST_LENGTH, eid, eidlen, "", 0, "", 0);
@@ -388,7 +399,9 @@ int dtn_dht_deannounce(const unsigned char *eid, size_t eidlen) {
 }
 
 void dtn_dht_blacklist(int enable) {
+#ifdef BLACKLIST_SUPPORT
 	blacklist_enable(enable);
+#endif
 }
 
 /**
@@ -396,12 +409,22 @@ void dtn_dht_blacklist(int enable) {
  */
 
 int dht_blacklisted(const struct sockaddr *sa, int salen) {
+#ifdef BLACKLIST_SUPPORT
 	return blacklist_blacklisted(sa);
+#else
+	return 0;
+#endif
 }
 
 unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return,
 		unsigned int *ipv6_return) {
+#ifdef BLACKLIST_SUPPORT
 	return blacklist_size(ipv4_return, ipv6_return);
+#else
+	(*ipv4_return) = 0;
+	(*ipv6_return) = 0;
+	return 0;
+#endif
 }
 
 int dtn_dht_dns_bootstrap(struct dtn_dht_context *ctx, const char* name,
@@ -417,8 +440,8 @@ int dtn_dht_save_conf(const char *filename) {
 	return bootstrapping_save_conf(filename);
 }
 
-int dtn_dht_load_prev_conf(struct dtn_dht_context *ctx, const char *filename) {
-	return bootstrapping_load_conf(ctx, filename);
+int dtn_dht_load_prev_conf(const char *filename) {
+	return bootstrapping_load_conf(filename);
 }
 
 int dtn_dht_nodes(int af, int *good_return, int *dubious_return) {

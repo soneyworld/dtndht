@@ -1,5 +1,8 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* "blacklist support enabled" */
+#undef BLACKLIST_SUPPORT
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
@@ -126,14 +129,14 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* "rating support enabled" */
+#undef RATING_SUPPORT
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
 /* Version number of package */
 #undef VERSION
-
-/* "double lookup support enabled" */
-#undef WITH_DOUBLE_LOOKUP
 
 /* Define for Solaris 2.5.1 so the uint8_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the

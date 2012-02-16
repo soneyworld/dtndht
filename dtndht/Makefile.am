@@ -1,15 +1,20 @@
 ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS}
 
 include_h_sources = dtndht.h
-h_sources = $(include_h_sources)  dht.h blacklist.h  bloom.h rating.h bootstrapping.h utils.h list.h
-c_sources = dht.c dtndht.c blacklist.c bloom.c rating.c bootstrapping.c utils.c list.c
+h_sources = $(include_h_sources) dht.h  bootstrapping.h utils.h list.h
+c_sources = dht.c dtndht.c bootstrapping.c utils.c list.c
 
 AM_CFLAGS = $(OPENSSL_CFLAGS)
 AM_LDFLAGS = $(OPENSSL_LIBS)
 
-if DOUBLELOOKUP
-h_sources += doublelookup.h
-c_sources += doublelookup.c
+if BLACKLIST_SUPPORT
+h_sources += blacklist.h
+c_sources += blacklist.c
+endif
+
+if RATING_SUPPORT
+h_sources += bloom.h rating.h
+c_sources += bloom.c rating.c
 endif
 
 library_includedir=$(includedir)/$(GENERIC_LIBRARY_NAME)-$(GENERIC_API_VERSION)/$(GENERIC_LIBRARY_NAME)

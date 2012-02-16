@@ -12,27 +12,29 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <openssl/sha.h>
 
-struct dhtentryresult {
+struct dht_result_rating {
 	struct sockaddr_storage *ss;
 	BLOOM *frombloom;
 	int rating;
-	struct dhtentryresult *next;
+	struct dht_result_rating *next;
 };
-#ifdef WITH_DOUBLE_LOOKUP
-// Returns the rating of the given socket information
-// If no information was found, it returns -1
-int get_rating_of_sockaddr_storage(struct dhtentryresult *head,
-		const struct sockaddr_storage *ss);
-#endif
+
+struct dht_rating_entry {
+	unsigned char key[SHA_DIGEST_LENGTH];
+	time_t updated;
+	struct dht_result_rating *ratings;
+	struct dht_rating_entry *next;
+};
+
 /**
- * writes the rating of the given sockaddr_storage
+ * return the rating of the given sockaddr_storage as target for this id
  * this function adds the sender to a bloom filter to prevent double counting
  * If the head does not exist, it will be created and returned, otherwise the old head is returned
  */
-struct dhtentryresult* get_rating(int * rating, struct dhtentryresult *head,
-		const struct sockaddr_storage *ss, const struct sockaddr *from,
+int get_rating(unsigned char *info_hash, const struct sockaddr_storage *target, const struct sockaddr *from,
 		int fromlen);
-// Destroys the rating
-void free_rating(struct dhtentryresult *head);
+// Destroys the all ratings
+void free_ratings();
 #endif /* RATING_H_ */
