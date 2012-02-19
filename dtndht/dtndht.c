@@ -32,7 +32,7 @@
 #endif
 
 #ifndef REANNOUNCE_THRESHOLD
-#define REANNOUNCE_THRESHOLD 60
+#define REANNOUNCE_THRESHOLD 600
 #endif
 
 #define REPORT_HASHES
@@ -303,6 +303,7 @@ int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
 		reannounceList(ctx, &announcetable, REANNOUNCE_THRESHOLD);
 	}
 	cleanUpList(&lookuptable, LOOKUP_THRESHOLD);
+	cleanUpList(&announcetable, LOOKUP_THRESHOLD);
 	return dht_periodic(buf, buflen, from, fromlen, tosleep, callback, NULL,
 			ctx);
 }
@@ -356,13 +357,19 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const char *eid, size_t eidlen) 
 	printf("\n");
 #endif
 	struct dhtentry *entry;
+	struct dhtentry *announce;
 	entry = getFromList(key, &lookuptable);
 	if (entry == NULL) {
 		addToList(&lookuptable, key);
 	} else {
 		entry->updatetime = time(NULL);
 	}
-	return dtn_dht_search(ctx, key, 0);
+	announce = getFromList(key, &announcetable);
+	if (announce == NULL || !announce->announce) {
+		return dtn_dht_search(ctx, key, 0);
+	} else {
+		return 1;
+	}
 }
 
 int dtn_dht_announce(struct dtn_dht_context *ctx, const char *eid,
@@ -373,7 +380,8 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const char *eid,
 	struct dhtentry *entry;
 	entry = getFromList(key, &announcetable);
 	if (entry == NULL) {
-		addToList(&announcetable, key);
+		entry = addToList(&announcetable, key);
+		entry->announce = 1;
 		if (!dtn_dht_ready_for_work(ctx)) {
 			entry->updatetime = 0;
 			return 0;
@@ -386,6 +394,7 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const char *eid,
 			return dtn_dht_search(ctx, key, ctx->port);
 		}
 	} else {
+		entry->announce = 1;
 		return 0;
 	}
 }
@@ -394,7 +403,7 @@ int dtn_dht_deannounce(const char *eid, size_t eidlen) {
 	dht_remove_dtn_eid(eid, eidlen);
 	unsigned char key[SHA_DIGEST_LENGTH];
 	dht_hash(key, SHA_DIGEST_LENGTH, eid, eidlen, "", 0, "", 0);
-	removeFromList(key, &announcetable);
+	deactivateFromList(key, &announcetable);
 	return 0;
 }
 

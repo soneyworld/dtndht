@@ -47,7 +47,6 @@ struct dtn_eid {
 };
 
 struct dtn_dht_lookup_result {
-	unsigned char md[20];
 	struct dtn_eid * eid;
 	struct dtn_eid * groups;
 	struct dtn_eid * neighbours;

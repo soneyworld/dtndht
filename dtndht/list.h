@@ -12,6 +12,7 @@
 
 struct dhtentry {
 	unsigned char md[SHA_DIGEST_LENGTH];
+	int announce;
 	time_t updatetime;
 	struct dhtentry *next;
 };
@@ -21,9 +22,9 @@ struct list {
 };
 
 void cleanUpList(struct list *table, int threshold);
-void removeFromList(const unsigned char *key, struct list *table);
+void deactivateFromList(const unsigned char *key, struct list *table);
 struct dhtentry* getFromList(const unsigned char *key, struct list *table);
-void addToList(struct list *table, const unsigned char *key);
+struct dhtentry* addToList(struct list *table, const unsigned char *key);
 int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 		int threshold);
 // implementation is in dtndht.c

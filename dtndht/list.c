@@ -15,7 +15,7 @@ void cleanUpList(struct list *table, int threshold) {
 	struct dhtentry *pos = head;
 	struct dhtentry *prev = NULL;
 	while (pos != NULL) {
-		if (time(NULL) > (pos->updatetime + threshold)) {
+		if (time(NULL) > (pos->updatetime + threshold) && !pos->announce) {
 			if (prev != NULL) {
 				if (pos->next) {
 					prev->next = pos->next;
@@ -51,7 +51,7 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 	while (pos != NULL) {
 		time_t acttime = time(NULL);
 		time_t lastupdate = pos->updatetime;
-		if ((lastupdate + threshold) < acttime) {
+		if (pos->announce && (lastupdate + threshold) < acttime) {
 			rc = dtn_dht_search(ctx, pos->md, ctx->port);
 			if (rc < 0) {
 				result--;
@@ -64,37 +64,21 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 	return result;
 }
 
-void addToList(struct list *table, const unsigned char *key) {
+struct dhtentry * addToList(struct list *table, const unsigned char *key) {
 	struct dhtentry *newentry;
 	newentry = (struct dhtentry*) malloc(sizeof(struct dhtentry));
 	memcpy(newentry->md, key, SHA_DIGEST_LENGTH);
 	newentry->next = table->head;
 	newentry->updatetime = time(NULL);
+	newentry->announce = 0;
 	table->head = newentry;
+	return newentry;
 }
 
-void removeFromList(const unsigned char *key, struct list *table) {
-	int empty = 1;
-	struct dhtentry *pos = table->head;
-	struct dhtentry *prev = NULL;
-	while (pos) {
-		if (memcmp(key, pos->md, SHA_DIGEST_LENGTH)) {
-			if (prev) {
-				if (pos->next) {
-					prev->next = pos->next;
-				} else {
-					prev->next = NULL;
-				}
-			}
-			free(pos);
-			break;
-		}
-		prev = pos;
-		pos = pos->next;
-		empty = 0;
-	}
-	if (empty) {
-		table->head = NULL;
+void deactivateFromList(const unsigned char *key, struct list *table) {
+	struct dhtentry *pos = getFromList(key,table);
+	if(pos){
+		pos->announce = 0;
 	}
 }
 
