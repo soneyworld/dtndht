@@ -3136,7 +3136,8 @@ static int parse_dtn_message(const unsigned char *buf, int buflen,
 			int n = parse_dtn_eid_list(p+5, buflen-pos, groups);
 			if(n>=0){
 				pos += n;
-				result->groups = groups;
+				if(n>0)
+					result->groups = groups;
 			} else {
 				free_dtn_eid(groups);
 				goto error;
@@ -3151,8 +3152,9 @@ static int parse_dtn_message(const unsigned char *buf, int buflen,
 			struct dtn_eid * neighbours = create_dtn_eid();
 			int n = parse_dtn_eid_list(p+6, buflen-pos, neighbours);
 			if(n>=0){
-				result->neighbours = neighbours;
 				pos += n;
+				if(n>0)
+					result->neighbours = neighbours;
 			} else {
 				free_dtn_eid(neighbours);
 				goto error;
