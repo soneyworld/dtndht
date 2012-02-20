@@ -262,17 +262,17 @@ static int send_dtninfo(const struct sockaddr *sa, int salen,
 #define WANT4 1
 #define WANT6 2
 
+static struct dtn_dht_lookup_result * create_dtn_dht_lookup_result(void);
 static struct dtn_eid * create_dtn_eid( void );
 static struct dtn_convergence_layer * create_convergence_layer(void);
 static struct dtn_convergence_layer_arg * create_convergence_layer_arg(void);
+static void free_dtn_dht_lookup_result(struct dtn_dht_lookup_result * result);
 static void free_dtn_eid(struct dtn_eid * eid);
 static void free_convergence_layer(struct dtn_convergence_layer * layer);
 
 static int parse_dtn_message(const unsigned char *buf, int buflen,
 		const struct sockaddr *from, int fromlen,
-		unsigned char *tid_return, int *tid_len, struct dtn_eid * eid,
-		struct dtn_eid * groups, struct dtn_eid * neighbours,
-		struct dtn_convergence_layer * convergence_layer);
+		unsigned char *tid_return, int *tid_len, struct dtn_dht_lookup_result * result);
 
 static int parse_message(const unsigned char *buf, int buflen,
 		unsigned char *tid_return, int *tid_len, unsigned char *id_return,
@@ -1808,10 +1808,7 @@ int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
 		int values_len = 2048, values6_len = 2048;
 		int want;
 		unsigned short ttid;
-		struct dtn_eid * eid = create_dtn_eid();
-		struct dtn_eid * groups = create_dtn_eid();
-		struct dtn_eid * neighbours = create_dtn_eid();
-		struct dtn_convergence_layer * convergence_layer = create_convergence_layer();
+		struct dtn_dht_lookup_result * dtn_result = create_dtn_dht_lookup_result();
 		if (is_martian(from))
 			goto dontread;
 
@@ -1827,14 +1824,12 @@ int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
 		}
 
 		message = parse_dtn_message(buf, buflen, from,
-				fromlen, tid, &tid_len, eid, groups,
-				neighbours, convergence_layer);
+				fromlen, tid, &tid_len, dtn_result);
 		if (message == DTN_REPLY || message == DTN_QUERY) {
-			struct dtn_dht_lookup_result result;
 			switch (message) {
 			case DTN_QUERY:
-				if(dtn_my_eid_changed &&
-						!(dtn_my_eid_len == eid->eidlen && memcmp(dtn_my_eid, eid->eid ,eid->eidlen)==0)
+				if(dtn_my_eid_changed && dtn_result->eid &&
+						!(dtn_my_eid_len == dtn_result->eid->eidlen && memcmp(dtn_my_eid, dtn_result->eid->eid ,dtn_result->eid->eidlen)==0)
 						){
 				send_dtninfo(from, fromlen, tid, tid_len,
 						dtn_my_eid, dtn_my_eid_len,ctx->clayer,
@@ -1842,20 +1837,14 @@ int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
 				}
 				break;
 			case DTN_REPLY:
-				result.clayer = convergence_layer;
-				result.eid = eid;
-				result.groups = groups;
-				result.neighbours = neighbours;
-				if(!(dtn_my_eid_len == eid->eidlen && memcmp(dtn_my_eid, eid->eid ,eid->eidlen)==0))
-					dtn_dht_handle_lookup_result(&result);
+				if(dtn_result->eid && !(dtn_my_eid_len == dtn_result->eid->eidlen && memcmp(dtn_my_eid, dtn_result->eid->eid ,dtn_result->eid->eidlen)==0))
+					dtn_dht_handle_lookup_result(dtn_result);
 				break;
 			}
-			free_dtn_eid(eid);
-			free_dtn_eid(groups);
-			free_dtn_eid(neighbours) ;
-			free_convergence_layer(convergence_layer);
+			free_dtn_dht_lookup_result(dtn_result);
 			goto dontread;
 		}
+		free_dtn_dht_lookup_result(dtn_result);
 
 		message = parse_message(buf, buflen, tid, &tid_len, id, info_hash,
 				target, &port, token, &token_len, nodes, &nodes_len, nodes6,
@@ -2836,6 +2825,26 @@ dht_memmem(const void *haystack, size_t haystacklen, const void *needle,
 }
 
 #endif
+
+static struct dtn_dht_lookup_result * create_dtn_dht_lookup_result(void) {
+	struct dtn_dht_lookup_result * result = (struct dtn_dht_lookup_result*) malloc(sizeof(struct dtn_dht_lookup_result));
+	result->clayer = NULL;
+	result->eid = NULL;
+	result->groups = NULL;
+	result->neighbours = NULL;
+	return result;
+}
+
+static void free_dtn_dht_lookup_result(struct dtn_dht_lookup_result * result) {
+	if(result){
+		free_dtn_eid(result->eid);
+		free_dtn_eid(result->groups);
+		free_dtn_eid(result->neighbours);
+		free_convergence_layer(result->clayer);
+		free(result);
+	}
+}
+
 static struct dtn_eid * create_dtn_eid( void ) {
 	struct dtn_eid * result = (struct dtn_eid*) malloc(sizeof(struct dtn_eid));
 	result->eid = NULL;
@@ -2860,6 +2869,7 @@ static struct dtn_convergence_layer_arg * create_convergence_layer_arg(void) {
 	result->value = NULL;
 	result->valuelen = 0;
 	result ->next = NULL;
+	return result;
 }
 
 static void free_convergence_layer_arg(struct dtn_convergence_layer_arg * arg) {
@@ -3039,9 +3049,7 @@ static int parse_dtn_convergence_layer(const unsigned char *buf, int buflen, con
 
 static int parse_dtn_message(const unsigned char *buf, int buflen,
 		const struct sockaddr *from, int fromlen,
-		unsigned char *tid_return, int *tid_len, struct dtn_eid * eid,
-		struct dtn_eid * groups, struct dtn_eid * neighbours,
-		struct dtn_convergence_layer * convergence_layer) {
+		unsigned char *tid_return, int *tid_len,struct dtn_dht_lookup_result * result) {
 	int pos = 0, rc = -1;
 	long l = 0;
 	char *q;
@@ -3058,9 +3066,10 @@ static int parse_dtn_message(const unsigned char *buf, int buflen,
 		l = strtol((char*) buf + 10, &q, 10);
 		if (q && *q == ':' && l > 0 ) {
 			CHECK(q + 1, l);
-			eid->eidlen = l;
-			eid->eid = (char*) malloc(l);
-			memcpy(eid->eid, q + 1, l);
+			result->eid = create_dtn_eid();
+			result->eid->eidlen = l;
+			result->eid->eid = (char*) malloc(l);
+			memcpy(result->eid->eid, q + 1, l);
 		} else {
 			goto error;
 		}
@@ -3089,11 +3098,16 @@ static int parse_dtn_message(const unsigned char *buf, int buflen,
 		rc = DTN_REPLY;
 		//TODO Parse convergence layer
 		pos = 10;
-		int n = parse_dtn_convergence_layer(buf + pos, buflen - pos, from, fromlen, convergence_layer);
-		if(n<0){
+		struct dtn_convergence_layer * cl = create_convergence_layer();
+		int n = parse_dtn_convergence_layer(buf + pos, buflen - pos, from, fromlen, cl);
+		if(n<0) {
+			free_convergence_layer(cl);
 			goto overflow;
-		}else if(n==0){
+		} else if(n==0) {
+			free_convergence_layer(cl);
 			goto error;
+		} else {
+			result->clayer = cl;
 		}
 		pos += n;
 		//TODO Parse eid
@@ -3103,9 +3117,10 @@ static int parse_dtn_message(const unsigned char *buf, int buflen,
 			l = strtol((char*) buf+pos, &q, 10);
 			if (q && *q == ':' && l > 5) {
 				CHECK(q+1,l);
-				eid->eidlen = l;
-				eid->eid = (char*) malloc(l);
-				memcpy(eid->eid, q+1, l);
+				result->eid = create_dtn_eid();
+				result->eid->eidlen = l;
+				result->eid->eid = (char*) malloc(l);
+				memcpy(result->eid->eid, q+1, l);
 			}else{
 				goto error;
 			}
@@ -3117,10 +3132,13 @@ static int parse_dtn_message(const unsigned char *buf, int buflen,
 		p = dht_memmem(buf+pos, buflen-pos, "2:grl", 5);
 		if(p) {
 			pos = p - buf + 5;
+			struct dtn_eid * groups = create_dtn_eid();
 			int n = parse_dtn_eid_list(p+5, buflen-pos, groups);
 			if(n>=0){
 				pos += n;
+				result->groups = groups;
 			} else {
+				free_dtn_eid(groups);
 				goto error;
 			}
 		} else {
@@ -3130,10 +3148,13 @@ static int parse_dtn_message(const unsigned char *buf, int buflen,
 		p = dht_memmem(buf+pos, buflen-pos, "e2:nbl", 6);
 		if(p){
 			pos = p - buf + 6;
+			struct dtn_eid * neighbours = create_dtn_eid();
 			int n = parse_dtn_eid_list(p+6, buflen-pos, neighbours);
 			if(n>=0){
+				result->neighbours = neighbours;
 				pos += n;
 			} else {
+				free_dtn_eid(neighbours);
 				goto error;
 			}
 		}else{
