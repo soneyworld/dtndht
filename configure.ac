@@ -96,33 +96,36 @@ dnl -----------------------------------------------
 dnl optional parameter: blacklist mechanism
 dnl -----------------------------------------------
 
-AC_ARG_WITH(blacklist,
-	AS_HELP_STRING([--with-blacklist], [build with blacklist support
-		@<:@default=no@:>@]),
+AC_ARG_ENABLE(blacklist,
+	AS_HELP_STRING([--enable-blacklist], [build with blacklist support
+		@<:@default=yes@:>@]),
 	[
-	if test "x$with_blacklist" = "xyes"; then
-		AC_DEFINE(BLACKLIST_SUPPORT, [1], ["blacklist support enabled"])
-	fi
-	],[]
+		if test "x$enable_blacklist" = "xyes"; then
+			AC_DEFINE(BLACKLIST_SUPPORT, [1], ["blacklist support enabled"])
+		fi
+	],[
+	]
 )
 	
-AM_CONDITIONAL(BLACKLIST_SUPPORT, test x$with_blacklist = xyes)
+AM_CONDITIONAL(BLACKLIST_SUPPORT, test x$enable_blacklist = xyes)
 
 dnl -----------------------------------------------
 dnl optional parameter: rating mechanism
 dnl -----------------------------------------------
 
-AC_ARG_WITH(rating,
-	AS_HELP_STRING([--with-rating], [build with rating support
-		@<:@default=no@:>@]),
+AC_ARG_ENABLE(rating,
+	AS_HELP_STRING([--enable-rating], [build with rating support
+		@<:@default=yes@:>@]),
 	[
-	if test "x$with_rating" = "xyes"; then
-		AC_DEFINE(RATING_SUPPORT, [1], ["rating support enabled"])
-	fi
-	],[]
+		if test "x$enable_rating" = "xyes"; then
+			AC_DEFINE(RATING_SUPPORT, [1], ["rating support enabled"])
+			AC_CHECK_HEADERS([limits.h])
+		fi
+	],[
+	]
 )
 	
-AM_CONDITIONAL(RATING_SUPPORT, test x$with_rating = xyes)
+AM_CONDITIONAL(RATING_SUPPORT, test x$enable_rating = xyes)
 
 
 

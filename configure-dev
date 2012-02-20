@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 
-CONF_PARAMS="--with-blacklist --with-rating"
+CONF_PARAMS="--enable-blacklist --enable-rating"
 
 if [ -e .coverage ]; then
 	export CXXFLAGS="-g -O0 -Wall -W -Wunused-variable -Wunused-parameter -Wunused-function -Wunused -Wno-system-headers -Wno-deprecated -Woverloaded-virtual -Wwrite-strings -fprofile-arcs -ftest-coverage"
