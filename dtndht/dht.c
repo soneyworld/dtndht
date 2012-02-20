@@ -2967,9 +2967,14 @@ static int parse_dtn_convergence_layer_args(const unsigned char *buf, int buflen
 		goto error;
 	result = keylen+valuelen+2;
 	if(result < buflen){
-		args->next = create_convergence_layer_arg();
-		rc = parse_dtn_convergence_layer_args(buf + result,buflen-result,args->next);
+		struct dtn_convergence_layer_arg * arg = create_convergence_layer_arg();
+		rc = parse_dtn_convergence_layer_args(buf + result,buflen-result, arg);
 		if(rc>=0){
+			if(rc>0){
+				args->next = arg;
+			} else {
+				free_convergence_layer_arg(arg);
+			}
 			return result + rc;
 		}else{
 			goto error;
@@ -2981,7 +2986,7 @@ static int parse_dtn_convergence_layer_args(const unsigned char *buf, int buflen
 }
 
 static int parse_dtn_convergence_layer(const unsigned char *buf, int buflen, const struct sockaddr *from, int fromlen, struct dtn_convergence_layer * layers){
-	int result = 0;
+	int rc, result = 0;
 	int pos, length;
 	if(*buf == 'e') {
 		layers->next = NULL;
@@ -3006,7 +3011,8 @@ static int parse_dtn_convergence_layer(const unsigned char *buf, int buflen, con
 			}
 			q = q + 6 + namelen + 1;
 			layers->args = create_convergence_layer_arg();
-			if(parse_dtn_convergence_layer_args((unsigned char*) q, l - namelen - 6,layers->args)<=0){
+			rc = parse_dtn_convergence_layer_args((unsigned char*) q, l - namelen - 6,layers->args);
+			if(rc <= 0){
 				return -1;
 			}
 			// Adding IP
@@ -3038,6 +3044,10 @@ static int parse_dtn_convergence_layer(const unsigned char *buf, int buflen, con
 		layers->next = create_convergence_layer();
 		pos = parse_dtn_convergence_layer((unsigned char*) begin + l + 1, length, from, fromlen, layers->next);
 		if(pos>=0){
+			if(pos == 0) {
+				free_convergence_layer(layers->next);
+				layers->next = NULL;
+			}
 			result+=pos;
 			return result;
 		} else {
