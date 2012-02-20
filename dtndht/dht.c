@@ -2927,8 +2927,14 @@ static int parse_dtn_eid_list(const unsigned char *buf, int buflen, struct dtn_e
 		length = q + 1 + l - (char*) buf;
 		result = parse_dtn_eid_list((unsigned char*)q + 1 + l, buflen - length, eids->next);
 		if(result>=0){
+			if(result==0){
+				free_dtn_eid(eids->next);
+				eids->next = NULL;
+			}
 			return result + length;
 		} else {
+			free_dtn_eid(eids->next);
+			eids->next = NULL;
 			return result;
 		}
 	}
