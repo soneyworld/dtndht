@@ -97,36 +97,27 @@ dnl optional parameter: blacklist mechanism
 dnl -----------------------------------------------
 
 AC_ARG_ENABLE(blacklist,
-	AS_HELP_STRING([--enable-blacklist], [build with blacklist support
-		@<:@default=yes@:>@]),
-	[
-		if test "x$enable_blacklist" = "xyes"; then
-			AC_DEFINE(BLACKLIST_SUPPORT, [1], ["blacklist support enabled"])
-		fi
-	],[
-	]
-)
+	AS_HELP_STRING([--disable-blacklist], [build without blacklist support]))
+
+AS_IF([test "x$enable_blacklist" != "xno"], [
+        AC_DEFINE(BLACKLIST_SUPPORT, [1], ["blacklist support enabled"])
+])
 	
-AM_CONDITIONAL(BLACKLIST_SUPPORT, test x$enable_blacklist = xyes)
+AM_CONDITIONAL(BLACKLIST_SUPPORT, test x$enable_blacklist != xno)
 
 dnl -----------------------------------------------
 dnl optional parameter: rating mechanism
 dnl -----------------------------------------------
 
-AC_ARG_ENABLE(rating,
-	AS_HELP_STRING([--enable-rating], [build with rating support
-		@<:@default=yes@:>@]),
-	[
-		if test "x$enable_rating" = "xyes"; then
-			AC_DEFINE(RATING_SUPPORT, [1], ["rating support enabled"])
-			AC_CHECK_HEADERS([limits.h])
-		fi
-	],[
-	]
-)
-	
-AM_CONDITIONAL(RATING_SUPPORT, test x$enable_rating = xyes)
+AC_ARG_ENABLE([rating],
+    AS_HELP_STRING([--disable-rating], [build without rating feature]))
 
+AS_IF([test "x$enable_rating" != "xno"], [
+	AC_DEFINE(RATING_SUPPORT, [1], ["rating support enabled"])
+        AC_CHECK_HEADERS([limits.h])
+])
+	
+AM_CONDITIONAL(RATING_SUPPORT, test x$enable_rating != xno)
 
 
 AC_CONFIG_FILES([Makefile \
