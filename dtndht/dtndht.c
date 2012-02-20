@@ -35,8 +35,8 @@
 #define REANNOUNCE_THRESHOLD 600
 #endif
 
-#define REPORT_HASHES
-#define DEBUG
+//#define REPORT_HASHES
+//#define DEBUG
 
 #ifdef DEBUG
 #ifndef REPORT_HASHES

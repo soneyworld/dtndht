@@ -1550,6 +1550,9 @@ int dht_init(int s, int s6, const unsigned char *id, const unsigned char *v) {
 	storage = NULL;
 	numstorage = 0;
 
+	mygroups = NULL;
+	myneighbours = NULL;
+
 	if (s >= 0) {
 		buckets = calloc(sizeof(struct bucket), 1);
 		if (buckets == NULL)
@@ -1657,7 +1660,8 @@ int dht_uninit() {
 		searches = searches->next;
 		free(sr);
 	}
-
+	free_dtn_eid(mygroups);
+	free_dtn_eid(myneighbours);
 	return 1;
 }
 
@@ -2254,23 +2258,23 @@ int dht_add_dtn_eid(const char *eid, size_t eidlen, enum dtn_dht_lookup_type typ
 		default:
 			return -1;
 	}
-	struct dtn_eid * e = list;
-	while(e){
-		if(e->eidlen == eidlen && (memcmp(eid, e->eid , eidlen)==0))
+	while(list){
+		if(list->eidlen == eidlen && (memcmp(eid, list->eid , eidlen)==0))
 				return 0;
-		e = e->next;
+		list = list->next;
 	}
-	e = create_dtn_eid();
-	e->eid = (char*) malloc(eidlen);
-	memcpy(e->eid, eid, eidlen);
-	e->eidlen = eidlen;
-	e->next = list;
+	struct dtn_eid * neweid = create_dtn_eid();
+	neweid->eid = (char*) malloc(eidlen);
+	memcpy(neweid->eid, eid, eidlen);
+	neweid->eidlen = eidlen;
 	switch(type) {
 	case GROUP:
-		mygroups = e;
+		neweid->next = mygroups;
+		mygroups = neweid;
 		break;
 	case NEIGHBOUR:
-		myneighbours = e;
+		neweid->next = myneighbours;
+		myneighbours = neweid;
 		break;
 	default:
 		return -1;
@@ -2278,15 +2282,35 @@ int dht_add_dtn_eid(const char *eid, size_t eidlen, enum dtn_dht_lookup_type typ
 	return 1;
 }
 
-int remove_dtn_eid(const char *eid, size_t eidlen, struct dtn_eid * list){
+int remove_dtn_neighbour(const char *eid, size_t eidlen){
 	struct dtn_eid * prev = NULL;
-	struct dtn_eid * e = list;
+	struct dtn_eid * e = myneighbours;
 	while(e){
 		if(e->eidlen == eidlen && (memcmp(eid, e->eid , eidlen)==0)){
 			if(prev){
 				prev->next = e->next;
 			}else{
-				list = e->next;
+				myneighbours = e->next;
+			}
+			free(e->eid);
+			free(e);
+			return 1;
+		}
+		prev = e;
+		e = e->next;
+	}
+	return 0;
+}
+
+int remove_dtn_group(const char *eid, size_t eidlen){
+	struct dtn_eid * prev = NULL;
+	struct dtn_eid * e = mygroups;
+	while(e){
+		if(e->eidlen == eidlen && (memcmp(eid, e->eid , eidlen)==0)){
+			if(prev){
+				prev->next = e->next;
+			}else{
+				mygroups = e->next;
 			}
 			free(e->eid);
 			free(e);
@@ -2299,8 +2323,8 @@ int remove_dtn_eid(const char *eid, size_t eidlen, struct dtn_eid * list){
 }
 
 int dht_remove_dtn_eid(const char *eid, size_t eidlen){
-	int rc = remove_dtn_eid(eid, eidlen, myneighbours);
-	rc += remove_dtn_eid(eid, eidlen, mygroups);
+	int rc = remove_dtn_neighbour(eid, eidlen);
+	rc += remove_dtn_group(eid, eidlen);
 	return rc;
 }
 
@@ -2968,6 +2992,27 @@ static int parse_dtn_convergence_layer(const unsigned char *buf, int buflen, con
 			layers->args = create_convergence_layer_arg();
 			if(parse_dtn_convergence_layer_args((unsigned char*) q, l - namelen - 6,layers->args)<=0){
 				return -1;
+			}
+			// Adding IP
+			if(memcmp(layers->clname,"tcp",MIN(layers->clnamelen,3))==0 || memcmp(layers->clname,"udp",MIN(layers->clnamelen,3))==0){
+				struct dtn_convergence_layer_arg * ip = create_convergence_layer_arg();
+				ip->key = (char*) malloc(2);
+				memcpy(ip->key, "ip", 2);
+				ip->keylen = 2;
+				switch (from->sa_family) {
+				case AF_INET:
+					ip->value = (char*) malloc(INET_ADDRSTRLEN);
+					inet_ntop(from->sa_family, &((struct sockaddr_in *) from)->sin_addr, ip->value, INET_ADDRSTRLEN);
+					ip->valuelen = INET_ADDRSTRLEN;
+					break;
+				case AF_INET6:
+					ip->value = (char*) malloc(INET6_ADDRSTRLEN);
+					inet_ntop(from->sa_family, &((struct sockaddr_in6 *) from)->sin6_addr, ip->value, INET6_ADDRSTRLEN);
+					ip->valuelen = INET6_ADDRSTRLEN;
+					break;
+				}
+				ip->next = layers->args;
+				layers->args = ip;
 			}
 		} else {
 			return -1;
