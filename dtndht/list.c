@@ -64,6 +64,24 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 	return result;
 }
 
+int relookupList(struct dtn_dht_context *ctx, struct list *table){
+	int rc, result = 0;
+	struct dhtentry *pos = table->head;
+	while(pos!=NULL){
+		if(pos->status == DONE_AND_READY_FOR_REPEAT){
+			rc = dtn_dht_search(ctx, pos->md, 0);
+			if (rc < 0) {
+				result--;
+			} else {
+				pos->status = SEARCHING;
+				pos->updatetime = time(NULL);
+			}
+		}
+		pos = pos->next;
+	}
+	return result;
+}
+
 struct dhtentry * addToList(struct list *table, const unsigned char *key) {
 	struct dhtentry *newentry;
 	newentry = (struct dhtentry*) malloc(sizeof(struct dhtentry));
@@ -71,6 +89,7 @@ struct dhtentry * addToList(struct list *table, const unsigned char *key) {
 	newentry->next = table->head;
 	newentry->updatetime = time(NULL);
 	newentry->announce = 0;
+	newentry->status = SEARCHING;
 	table->head = newentry;
 	return newentry;
 }

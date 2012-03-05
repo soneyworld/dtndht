@@ -18,9 +18,11 @@
 #include "list.h"
 #include <openssl/sha.h>
 #include <netinet/in.h>
+#include <unistd.h>
 
 #ifdef RATING_SUPPORT
 #include "rating.h"
+static size_t minimum_rating = 1;
 #endif
 
 #ifdef BLACKLIST_SUPPORT
@@ -64,6 +66,22 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
  when a search completes, but this may be extended in future versions. */
 static void callback(void *closure, int event, unsigned char *info_hash,
 		void *data, size_t data_len, const struct sockaddr *from, int fromlen) {
+	if (event == DHT_EVENT_SEARCH_DONE || event == DHT_EVENT_SEARCH_DONE6){
+		struct dhtentry* entry = getFromList(info_hash, &lookuptable);
+		if (entry != NULL) {
+			switch(entry->status){
+			case SEARCHING:
+				entry->status = DONE;
+				break;
+			case REPEAT_SEARCH:
+				entry->status = DONE_AND_READY_FOR_REPEAT;
+				break;
+			default:
+				break;
+			}
+		}
+		return;
+	}
 	if (!(event == DHT_EVENT_VALUES || event == DHT_EVENT_VALUES6))
 		return;
 	int i;
@@ -123,7 +141,7 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 #endif
 	for (i = 0; i < count; i++) {
 #ifdef RATING_SUPPORT
-		if (ratings[i] >= 1) {
+		if (ratings[i] > 0 && (size_t)ratings[i] >= minimum_rating) {
 #endif
 #ifdef DEBUG
 			char * buf;
@@ -174,6 +192,9 @@ int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
 }
 
 int dtn_dht_init(struct dtn_dht_context *ctx) {
+#ifdef RATING_SUPPORT
+	minimum_rating = (*ctx).minimum_rating;
+#endif
 	announcetable.head = NULL;
 	lookuptable.head = NULL;
 	return dht_init((*ctx).ipv4socket, (*ctx).ipv6socket, (*ctx).id, NULL);
@@ -299,8 +320,12 @@ int dtn_dht_uninit(void) {
 int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
 		size_t buflen, const struct sockaddr *from, int fromlen,
 		time_t *tosleep) {
+#ifdef RATING_SUPPORT
+	minimum_rating = (*ctx).minimum_rating;
+#endif
 	if (dtn_dht_ready_for_work(ctx) >= 2) {
 		reannounceList(ctx, &announcetable, REANNOUNCE_THRESHOLD);
+		relookupList(ctx, &lookuptable);
 	}
 	cleanUpList(&lookuptable, LOOKUP_THRESHOLD);
 	cleanUpList(&announcetable, LOOKUP_THRESHOLD);
@@ -349,6 +374,9 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 int dtn_dht_lookup(struct dtn_dht_context *ctx, const char *eid, size_t eidlen) {
 	if (!dtn_dht_ready_for_work(ctx))
 		return 0;
+#ifdef RATING_SUPPORT
+	minimum_rating = (*ctx).minimum_rating;
+#endif
 	unsigned char key[SHA_DIGEST_LENGTH];
 	dht_hash(key, SHA_DIGEST_LENGTH, eid, eidlen, "", 0, "", 0);
 #ifdef REPORT_HASHES
@@ -362,7 +390,13 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const char *eid, size_t eidlen) 
 	if (entry == NULL) {
 		addToList(&lookuptable, key);
 	} else {
+		// Do not relookup, if the last lookup isn't finished
+		if(entry->status == SEARCHING || entry->status == REPEAT_SEARCH){
+			entry->status = REPEAT_SEARCH;
+			return 1;
+		}
 		entry->updatetime = time(NULL);
+		entry->status = SEARCHING;
 	}
 	announce = getFromList(key, &announcetable);
 	if (announce == NULL || !announce->announce) {
@@ -374,6 +408,9 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const char *eid, size_t eidlen) 
 
 int dtn_dht_announce(struct dtn_dht_context *ctx, const char *eid,
 		size_t eidlen, enum dtn_dht_lookup_type type) {
+#ifdef RATING_SUPPORT
+	minimum_rating = (*ctx).minimum_rating;
+#endif
 	dht_add_dtn_eid(eid, eidlen, type);
 	unsigned char key[SHA_DIGEST_LENGTH];
 	dht_hash(key, SHA_DIGEST_LENGTH, eid, eidlen, "", 0, "", 0);
@@ -438,10 +475,16 @@ unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return,
 
 int dtn_dht_dns_bootstrap(struct dtn_dht_context *ctx, const char* name,
 		const char* service) {
+#ifdef RATING_SUPPORT
+	minimum_rating = (*ctx).minimum_rating;
+#endif
 	return bootstrapping_dns(ctx, name, service);
 }
 
 void dtn_dht_start_random_lookup(struct dtn_dht_context *ctx) {
+#ifdef RATING_SUPPORT
+	minimum_rating = (*ctx).minimum_rating;
+#endif
 	bootstrapping_start_random_lookup(ctx, callback);
 }
 

@@ -59,8 +59,8 @@ int dtn_dht_load_prev_conf(const char *filename);
 int dtn_dht_save_conf(const char *filename);
 
 // Generates an ID from given string. This produces a deterministic ID.
-void
-dtn_dht_build_id_from_str(unsigned char *target, const char *s, size_t len);
+// Implementation is in the utils.c file
+void dtn_dht_build_id_from_str(unsigned char *target, const char *s, size_t len);
 
 // Initialize struct
 int dtn_dht_initstruct(struct dtn_dht_context *ctx);
