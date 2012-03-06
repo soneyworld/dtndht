@@ -309,6 +309,12 @@ int dtn_dht_uninit(void) {
 #ifdef RATING_SUPPORT
 	free_ratings();
 #endif
+	// switch all announcements off
+	struct dhtentry* entry = announcetable.head;
+	while(entry){
+		entry->announce = 0;
+		entry = entry->next;
+	}
 	cleanUpList(&announcetable, -1);
 	cleanUpList(&lookuptable, -1);
 #ifdef BLACKLIST_SUPPORT
