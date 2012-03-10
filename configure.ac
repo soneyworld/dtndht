@@ -97,7 +97,8 @@ dnl optional parameter: blacklist mechanism
 dnl -----------------------------------------------
 
 AC_ARG_ENABLE(blacklist,
-	AS_HELP_STRING([--disable-blacklist], [build without blacklist support]))
+	AS_HELP_STRING([--disable-blacklist], [build without blacklist support])
+)
 
 AS_IF([test "x$enable_blacklist" != "xno"], [
         AC_DEFINE(BLACKLIST_SUPPORT, [1], ["blacklist support enabled"])
@@ -110,7 +111,8 @@ dnl optional parameter: rating mechanism
 dnl -----------------------------------------------
 
 AC_ARG_ENABLE([rating],
-    AS_HELP_STRING([--disable-rating], [build without rating feature]))
+    AS_HELP_STRING([--disable-rating], [build without rating feature])
+)
 
 AS_IF([test "x$enable_rating" != "xno"], [
 	AC_DEFINE(RATING_SUPPORT, [1], ["rating support enabled"])
@@ -118,6 +120,20 @@ AS_IF([test "x$enable_rating" != "xno"], [
 ])
 	
 AM_CONDITIONAL(RATING_SUPPORT, test x$enable_rating != xno)
+
+dnl -----------------------------------------------
+dnl optional parameter: logging for dht evaluation 
+dnl -----------------------------------------------
+
+AC_ARG_ENABLE([evaluation],
+    AS_HELP_STRING([--enable-evaluation], [build with evaluation logging feature])
+)
+
+AS_IF([test "x$enable_evaluation" == "xyes"], [
+	AC_DEFINE(EVALUATION, [1], ["evaluation logging enabled"])
+])
+	
+AM_CONDITIONAL(EVALUATION, test x$enable_evaluation == xyes)
 
 
 AC_CONFIG_FILES([Makefile \
