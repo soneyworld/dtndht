@@ -1,3 +1,12 @@
+dtndht (0.2.1) experimental; urgency=low
+
+  * New possibility to enable evaluation output
+  * New function to free a convergence_layer struct
+    * New function is available from dtndht.h
+  * Bugfix free of unused memory
+
+-- Till Lorentzen <lorentze@ibr.cs.tu-bs.de> Mon, 12 Mar 2012 17:00:00 +0100
+
 dtndht (0.2.0) experimental; urgency=low
 	
   * New api design

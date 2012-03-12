@@ -108,6 +108,9 @@ int dtn_dht_periodic(struct dtn_dht_context *ctx, const void *buf,
 // Closes all socket of the context
 int dtn_dht_close_sockets(struct dtn_dht_context *ctx);
 
+// Frees the convergence layer list
+void dtn_dht_free_convergence_layer_struct(struct dtn_convergence_layer *clayer);
+
 // If blacklist is enabled (default) the number of blocked addresses is returned
 unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return,
 		unsigned int *ipv6_return);

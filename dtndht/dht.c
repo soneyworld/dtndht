@@ -1829,10 +1829,9 @@ int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
 		int values_len = 2048, values6_len = 2048;
 		int want;
 		unsigned short ttid;
-		struct dtn_dht_lookup_result * dtn_result = create_dtn_dht_lookup_result();
+
 		if (is_martian(from))
 			goto dontread;
-
 		if (node_blacklisted(from, fromlen)) {
 #ifdef DEBUG
 			debugf("Received packet from blacklisted node.\n");
@@ -1847,7 +1846,7 @@ int dht_periodic(const void *buf, size_t buflen, const struct sockaddr *from,
 			errno = EINVAL;
 			return -1;
 		}
-
+		struct dtn_dht_lookup_result * dtn_result = create_dtn_dht_lookup_result();
 		message = parse_dtn_message(buf, buflen, from,
 				fromlen, tid, &tid_len, dtn_result);
 		if (message == DTN_REPLY || message == DTN_QUERY) {
