@@ -33,6 +33,7 @@
 
 // conditional options
 #include "config.h"
+#include "utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -265,14 +266,6 @@ static int send_dtninfo(const struct sockaddr *sa, int salen,
 
 #define WANT4 1
 #define WANT6 2
-
-static struct dtn_dht_lookup_result * create_dtn_dht_lookup_result(void);
-static struct dtn_eid * create_dtn_eid( void );
-static struct dtn_convergence_layer * create_convergence_layer(void);
-static struct dtn_convergence_layer_arg * create_convergence_layer_arg(void);
-static void free_dtn_dht_lookup_result(struct dtn_dht_lookup_result * result);
-static void free_dtn_eid(struct dtn_eid * eid);
-static void free_convergence_layer(struct dtn_convergence_layer * layer);
 
 static int parse_dtn_message(const unsigned char *buf, int buflen,
 		const struct sockaddr *from, int fromlen,
@@ -2916,83 +2909,6 @@ dht_memmem(const void *haystack, size_t haystacklen, const void *needle,
 
 #endif
 
-static struct dtn_dht_lookup_result * create_dtn_dht_lookup_result(void) {
-	struct dtn_dht_lookup_result * result = (struct dtn_dht_lookup_result*) malloc(sizeof(struct dtn_dht_lookup_result));
-	result->clayer = NULL;
-	result->eid = NULL;
-	result->groups = NULL;
-	result->neighbours = NULL;
-	return result;
-}
-
-static void free_dtn_dht_lookup_result(struct dtn_dht_lookup_result * result) {
-	if(result){
-		free_dtn_eid(result->eid);
-		free_dtn_eid(result->groups);
-		free_dtn_eid(result->neighbours);
-		free_convergence_layer(result->clayer);
-		free(result);
-	}
-}
-
-static struct dtn_eid * create_dtn_eid( void ) {
-	struct dtn_eid * result = (struct dtn_eid*) malloc(sizeof(struct dtn_eid));
-	result->eid = NULL;
-	result->eidlen = 0;
-	result->next = NULL;
-	return result;
-}
-static void free_dtn_eid(struct dtn_eid * eid){
-	if(eid){
-		free_dtn_eid(eid->next);
-		if(eid->eid)
-			free(eid->eid);
-		free(eid);
-		eid = NULL;
-	}
-}
-
-static struct dtn_convergence_layer_arg * create_convergence_layer_arg(void) {
-	struct dtn_convergence_layer_arg * result = (struct dtn_convergence_layer_arg*) malloc(sizeof(struct dtn_convergence_layer_arg));
-	result->key = NULL;
-	result->keylen = 0;
-	result->value = NULL;
-	result->valuelen = 0;
-	result ->next = NULL;
-	return result;
-}
-
-static void free_convergence_layer_arg(struct dtn_convergence_layer_arg * arg) {
-	if(arg){
-		free_convergence_layer_arg(arg->next);
-		if(arg->key)
-			free(arg->key);
-		if(arg->value)
-			free(arg->value);
-		free(arg);
-		arg = NULL;
-	}
-}
-
-static struct dtn_convergence_layer * create_convergence_layer(void) {
-	struct dtn_convergence_layer * result =	(struct dtn_convergence_layer*) malloc(sizeof(struct dtn_convergence_layer));
-	result->args = NULL;
-	result->clname = NULL;
-	result->clnamelen = 0;
-	result->next = NULL;
-	return result;
-}
-
-static void free_convergence_layer(struct dtn_convergence_layer * layer) {
-	if(layer) {
-		free_convergence_layer(layer->next);
-		if(layer->clname)
-			free(layer->clname);
-		free_convergence_layer_arg(layer->args);
-		free(layer);
-		layer = NULL;
-	}
-}
 
 
 #define CHECK(ptr, len)                                                 \
@@ -3242,10 +3158,13 @@ static int parse_dtn_message(const unsigned char *buf, int buflen,
 			pos = p - buf + 5;
 			struct dtn_eid * groups = create_dtn_eid();
 			int n = parse_dtn_eid_list(p+5, buflen-pos, groups);
-			if(n>=0){
+			if (n>=0) {
 				pos += n;
-				if(n>0)
+				if(n>0) {
 					result->groups = groups;
+				} else {
+					free_dtn_eid(groups);
+				}
 			} else {
 				free_dtn_eid(groups);
 				goto error;
@@ -3455,8 +3374,8 @@ static int parse_message(const unsigned char *buf, int buflen,
 					break;
 				}
 			}
-			if (i >= buflen || buf[i] != 'e')
 #ifdef DEBUG
+			if (i >= buflen || buf[i] != 'e')
 				debugf("eek... unexpected end for values.\n");
 #endif
 			if (values_len)
