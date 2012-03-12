@@ -13,7 +13,14 @@ void printf_time(void) {
 	time_t timer;
 	timer = time(NULL);
 	char *str = asctime(localtime(&timer));
-	str[strlen(str) - 1] = '\0';
+	int i = 0;
+	while(str[i]!='\0'){
+		if(str[i]=='\n'){
+			str[i] = '\0';
+			break;
+		}
+		i++;
+	}
 	printf("%s", str);
 }
 
