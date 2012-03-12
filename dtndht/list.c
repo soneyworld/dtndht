@@ -11,32 +11,29 @@
 
 void cleanUpList(struct list *table, int threshold) {
 	int isempty = 1;
-	struct dhtentry *head = table->head;
-	struct dhtentry *pos = head;
+	struct dhtentry *pos = table->head;
 	struct dhtentry *prev = NULL;
+	struct dhtentry *next = NULL;
 	while (pos != NULL) {
 		if (time(NULL) > (pos->updatetime + threshold) && !pos->announce) {
+			// Delete pos by changing pointer
+			next = pos->next;
 			if (prev != NULL) {
-				if (pos->next) {
-					prev->next = pos->next;
-				} else {
-					prev->next = NULL;
-				}
+				prev->next = next;
 			} else {
-				table->head = NULL;
+				table->head = next;
 			}
 			free(pos);
-			if (prev != NULL) {
-				pos = prev->next;
-			} else {
-				pos = NULL;
-			}
+			pos = NULL;
 		} else {
 			isempty = 0;
 		}
-		prev = pos;
+		if (prev)
+			prev = prev->next;
 		if (pos != NULL) {
 			pos = pos->next;
+		} else {
+			pos = next;
 		}
 	}
 	if (isempty) {
@@ -64,11 +61,11 @@ int reannounceList(struct dtn_dht_context *ctx, struct list *table,
 	return result;
 }
 
-int relookupList(struct dtn_dht_context *ctx, struct list *table){
+int relookupList(struct dtn_dht_context *ctx, struct list *table) {
 	int rc, result = 0;
 	struct dhtentry *pos = table->head;
-	while(pos!=NULL){
-		if(pos->status == DONE_AND_READY_FOR_REPEAT){
+	while (pos != NULL) {
+		if (pos->status == DONE_AND_READY_FOR_REPEAT) {
 			rc = dtn_dht_search(ctx, pos->md, 0);
 			if (rc < 0) {
 				result--;
@@ -95,8 +92,8 @@ struct dhtentry * addToList(struct list *table, const unsigned char *key) {
 }
 
 void deactivateFromList(const unsigned char *key, struct list *table) {
-	struct dhtentry *pos = getFromList(key,table);
-	if(pos){
+	struct dhtentry *pos = getFromList(key, table);
+	if (pos) {
 		pos->announce = 0;
 	}
 }
