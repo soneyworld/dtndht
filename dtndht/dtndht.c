@@ -29,6 +29,10 @@ static size_t minimum_rating = 1;
 #include "blacklist.h"
 #endif
 
+#ifdef EVALUATION
+#include "evaluation.h"
+#endif
+
 #ifndef LOOKUP_THRESHOLD
 #define LOOKUP_THRESHOLD 1800
 #endif
@@ -37,23 +41,6 @@ static size_t minimum_rating = 1;
 #define REANNOUNCE_THRESHOLD 600
 #endif
 
-//#define REPORT_HASHES
-//#define DEBUG
-
-#ifdef DEBUG
-#ifndef REPORT_HASHES
-#define REPORT_HASHES
-#endif
-#endif
-
-#ifdef REPORT_HASHES
-static void printf_hash(const unsigned char *buf) {
-	int i;
-	for (i = 0; i < SHA_DIGEST_LENGTH; i++) {
-		printf("%02x", buf[i]);
-	}
-}
-#endif
 
 static struct list announcetable;
 static struct list lookuptable;
@@ -66,10 +53,16 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
  when a search completes, but this may be extended in future versions. */
 static void callback(void *closure, int event, unsigned char *info_hash,
 		void *data, size_t data_len, const struct sockaddr *from, int fromlen) {
-	if (event == DHT_EVENT_SEARCH_DONE || event == DHT_EVENT_SEARCH_DONE6){
+	if (event == DHT_EVENT_SEARCH_DONE || event == DHT_EVENT_SEARCH_DONE6) {
 		struct dhtentry* entry = getFromList(info_hash, &lookuptable);
 		if (entry != NULL) {
-			switch(entry->status){
+#ifdef EVALUATION
+			printf_evaluation_start();
+			printf("SEARCH_DONE_EVENT HASH=");
+			printf_hash(info_hash);
+			printf("\n");
+#endif
+			switch (entry->status) {
 			case SEARCHING:
 				entry->status = DONE;
 				break;
@@ -80,6 +73,22 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 				break;
 			}
 		}
+#ifdef EVALUATION
+		else {
+			entry = getFromList(info_hash, &announcetable);
+			if (entry) {
+				printf_evaluation_start();
+				printf("ANNOUNCE_DONE_EVENT HASH=");
+				printf_hash(info_hash);
+				printf("\n");
+			} else {
+				printf_evaluation_start();
+				printf("UNKNOWN_HASH_DONE_EVENT HASH=");
+				printf_hash(info_hash);
+				printf("\n");
+			}
+		}
+#endif
 		return;
 	}
 	if (!(event == DHT_EVENT_VALUES || event == DHT_EVENT_VALUES6))
@@ -101,6 +110,7 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 	if (getFromList(info_hash, &lookuptable) == NULL) {
 		return;
 	}
+
 	switch (event) {
 	case DHT_EVENT_VALUES:
 		count = data_len / 6;
@@ -134,38 +144,62 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 		}
 		break;
 	}
-#ifdef REPORT_HASHES
-	printf("Values found (%d) for ", count);
+#ifdef EVALUATION
+	printf_evaluation_start();
+	printf("VALUES_FOUND_EVENT HASH=");
 	printf_hash(info_hash);
-	printf("\n");
+	printf(" COUNT=%d FROM=", count);
+	char * str;
+	int fromport;
+	switch (from->sa_family) {
+	case AF_INET:
+		str = (char*) malloc(INET_ADDRSTRLEN);
+		inet_ntop(from->sa_family, &((struct sockaddr_in *) from)->sin_addr,
+				str, INET_ADDRSTRLEN);
+		fromport = ntohs(((struct sockaddr_in *) from)->sin_port);
+		break;
+	case AF_INET6:
+		str = (char*) malloc(INET6_ADDRSTRLEN);
+		inet_ntop(from->sa_family, &((struct sockaddr_in6 *) from)->sin6_addr,
+				str, INET6_ADDRSTRLEN);
+		fromport = ntohs(((struct sockaddr_in6 *) from)->sin6_port);
+		break;
+	default:
+		fromport = -1;
+		str = NULL;
+	}
+	if (str) {
+		printf("%s PORT=%d\n", str, fromport);
+		free(str);
+	}
 #endif
 	for (i = 0; i < count; i++) {
-#ifdef RATING_SUPPORT
-		if (ratings[i] > 0 && (size_t)ratings[i] >= minimum_rating) {
+#ifdef EVALUATION
+		char * buf;
+		int port;
+		switch (ss[i].ss_family) {
+		case AF_INET:
+			buf = (char*) malloc(INET_ADDRSTRLEN);
+			inet_ntop(ss[i].ss_family,
+					&((struct sockaddr_in *) &ss[i])->sin_addr, buf,
+					INET_ADDRSTRLEN);
+			port = ((struct sockaddr_in *) &ss[i])->sin_port;
+			printf("----> %s %d\n", buf, ntohs(port));
+			free(buf);
+			break;
+		case AF_INET6:
+			buf = (char*) malloc(INET6_ADDRSTRLEN);
+			inet_ntop(ss[i].ss_family,
+					&((struct sockaddr_in6 *) &ss[i])->sin6_addr, buf,
+					INET6_ADDRSTRLEN);
+			port = ((struct sockaddr_in6 *) &ss[i])->sin6_port;
+			printf("----> %s %d\n", buf, ntohs(port));
+			free(buf);
+			break;
+		}
 #endif
-#ifdef DEBUG
-			char * buf;
-			int port;
-			switch (ss[i].ss_family) {
-			case AF_INET:
-				buf = (char*) malloc(INET_ADDRSTRLEN);
-				inet_ntop(ss[i].ss_family,
-						&((struct sockaddr_in *) &ss[i])->sin_addr, buf,
-						INET_ADDRSTRLEN);
-				port = ((struct sockaddr_in *) &ss[i])->sin_port;
-				printf("sending dtn ping to host: %s %d\n", buf, ntohs(port));
-				free(buf);
-				break;
-			case AF_INET6:
-				buf = (char*) malloc(INET6_ADDRSTRLEN);
-				inet_ntop(ss[i].ss_family,
-						&((struct sockaddr_in6 *) &ss[i])->sin6_addr, buf,
-						INET6_ADDRSTRLEN);
-				port = ((struct sockaddr_in6 *) &ss[i])->sin6_port;
-				printf("sending dtn ping to host: %s %d\n", buf, ntohs(port));
-				free(buf);
-				break;
-			}
+#ifdef RATING_SUPPORT
+		if (ratings[i] > 0 && (size_t) ratings[i] >= minimum_rating) {
 #endif
 			dht_ping_dtn_node((struct sockaddr*) &ss[i], fromlen);
 #ifdef RATING_SUPPORT
@@ -176,6 +210,9 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 	free(ratings);
 #endif
 	free(ss);
+#ifdef EVALUATION
+	printf("-------------------------------------------------------\n");
+#endif
 }
 
 int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
@@ -311,7 +348,7 @@ int dtn_dht_uninit(void) {
 #endif
 	// switch all announcements off
 	struct dhtentry* entry = announcetable.head;
-	while(entry){
+	while (entry) {
 		entry->announce = 0;
 		entry = entry->next;
 	}
@@ -351,12 +388,15 @@ int dtn_dht_close_sockets(struct dtn_dht_context *ctx) {
 
 int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		int port) {
-#ifdef REPORT_HASHES
+#ifdef EVALUATION
+	printf_evaluation_start();
 	if (port > 0) {
-		printf("Announcing: ");
-		printf_hash(id);
-		printf("\n");
+		printf("DHT_SEARCH_AND_ANNOUNCE PORT=%d HASH=", port);
+	} else {
+		printf("DHT_SEARCH HASH=");
 	}
+	printf_hash(id);
+	printf("\n");
 #endif
 	int rc = 0;
 	switch (ctx->type) {
@@ -385,11 +425,6 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const char *eid, size_t eidlen) 
 #endif
 	unsigned char key[SHA_DIGEST_LENGTH];
 	dht_hash(key, SHA_DIGEST_LENGTH, eid, eidlen, "", 0, "", 0);
-#ifdef REPORT_HASHES
-	printf("Lookup %s: ", eid);
-	printf_hash(key);
-	printf("\n");
-#endif
 	struct dhtentry *entry;
 	struct dhtentry *announce;
 	entry = getFromList(key, &lookuptable);
@@ -397,7 +432,7 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const char *eid, size_t eidlen) 
 		addToList(&lookuptable, key);
 	} else {
 		// Do not relookup, if the last lookup isn't finished
-		if(entry->status == SEARCHING || entry->status == REPEAT_SEARCH){
+		if (entry->status == SEARCHING || entry->status == REPEAT_SEARCH) {
 			entry->status = REPEAT_SEARCH;
 			return 1;
 		}
@@ -406,6 +441,12 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const char *eid, size_t eidlen) 
 	}
 	announce = getFromList(key, &announcetable);
 	if (announce == NULL || !announce->announce) {
+#ifdef EVALUATION
+		printf_evaluation_start();
+		printf("START_LOOKUP EID=%s HASH=", eid);
+		printf_hash(key);
+		printf("\n");
+#endif
 		return dtn_dht_search(ctx, key, 0);
 	} else {
 		return 1;
@@ -429,8 +470,9 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const char *eid,
 			entry->updatetime = 0;
 			return 0;
 		} else {
-#ifdef REPORT_HASHES
-			printf("Announce %s: ", eid);
+#ifdef EVALUATION
+			printf_evaluation_start();
+			printf("START_ANNOUNCE EID=%s HASH=", eid);
 			printf_hash(key);
 			printf("\n");
 #endif
