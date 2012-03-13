@@ -1,3 +1,13 @@
+12 March 2012: dtndht-0.2.1
+  * New possibility to enable evaluation output
+  * New function to free a convergence_layer struct
+    * New function is available from dtndht.h
+  * Bugfix free of unused memory
+  
+7 February 2012: dtndht-0.2.0
+  * New api design
+  	* New GetEID Message added to dht
+
 06 February 2012: dtndht-0.1.7
   * New rating functions added
     * All DHT result have got a rating information

@@ -7,7 +7,11 @@
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef HAVE_OPENSSL_SHA_H
 #include <openssl/sha.h>
+#else
+#define SHA_DIGEST_LENGTH 20
+#endif
 
 void printf_time(void) {
 	time_t timer;

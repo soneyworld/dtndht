@@ -6,7 +6,11 @@
  */
 #include <sys/time.h>
 #include "dtndht.h"
+#ifdef HAVE_OPENSSL_SHA_H
 #include <openssl/sha.h>
+#else
+#define SHA_DIGEST_LENGTH 20
+#endif
 #ifndef LIST_H_
 #define LIST_H_
 

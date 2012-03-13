@@ -6,7 +6,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <arpa/inet.h>
+#ifdef HAVE_OPENSSL_SHA_H
 #include <openssl/sha.h>
+#else
+#define SHA_DIGEST_LENGTH 20
+#endif
 
 struct blacklist_entry {
 	void * children[256];

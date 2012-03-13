@@ -3,7 +3,11 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdlib.h>
+#ifdef HAVE_OPENSSL_SHA_H
 #include <openssl/sha.h>
+#else
+#define SHA_DIGEST_LENGTH 20
+#endif
 
 #include "bootstrapping.h"
 #include "dtndht.h"

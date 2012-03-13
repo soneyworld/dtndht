@@ -4,14 +4,30 @@
  *  Created on: 08.02.2012
  *      Author: Till Lorentzen
  */
+#include "config.h"
 #include "utils.h"
 #include <stdio.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <string.h>
 #include <stdlib.h>
+#ifdef HAVE_OPENSSL_RAND_H
 #include <openssl/rand.h>
+#endif
+#ifdef HAVE_OPENSSL_SHA_H
 #include <openssl/sha.h>
+#else
+#include "sha1.h"
+#define SHA_CTX sha1_context
+#define SHA_DIGEST_LENGTH 20
+#define SHA1_Init( CTX ) \
+        sha1_starts( (CTX) )
+#define SHA1_Update(  CTX, BUF, LEN ) \
+        sha1_update( (CTX), (unsigned char *)(BUF), (LEN) )
+#define SHA1_Final( OUT, CTX ) \
+        sha1_finish( (CTX), (OUT) )
+
+#endif
 #include "dht.h"
 
 int cpyvaluetosocketstorage(struct sockaddr_storage *target, const void *value,
@@ -134,6 +150,7 @@ void dht_hash(void *hash_return, int hash_size, const void *v1, int len1,
 		const void *v2, int len2, const void *v3, int len3) {
 	static SHA_CTX ctx;
 	static unsigned char md[SHA_DIGEST_LENGTH];
+
 	SHA1_Init(&ctx);
 	SHA1_Update(&ctx, v1, len1);
 	SHA1_Update(&ctx, v2, len2);
@@ -147,5 +164,15 @@ void dht_hash(void *hash_return, int hash_size, const void *v1, int len1,
 }
 
 int dht_random_bytes(void *buf, size_t size) {
+#ifdef HAVE_OPENSSL_RAND_H
 	return (RAND_bytes(buf, size) == 1);
+#else
+	size_t i;
+	unsigned char *b = (unsigned char* )buf;
+	srand(time(NULL));
+	for(i=0;i<size;i++) {
+		b[i] = (unsigned char) rand();
+	}
+	return 1;
+#endif
 }

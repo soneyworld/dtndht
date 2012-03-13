@@ -56,11 +56,7 @@ dnl -----------------------------------------------
 
 AC_PROG_CC
 AC_PROG_CXX
-AC_PROG_RANLIB
-
-# Checks for libraries.
-# FIXME: Replace `main' with a function in `-lcrypt':
-AC_CHECK_LIB([crypt], [main])
+AC_PROG_LIBTOOL
 
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h stddef.h])
@@ -78,16 +74,20 @@ AC_TYPE_UINT8_T
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([gettimeofday inet_ntoa memmove memset select socket strtol memchr])
 
+AC_ARG_WITH([openssl],AS_HELP_STRING([--with-openssl], [build with openssl support instead of own implementation]),[
 # check for openssl
-PKG_CHECK_MODULES(OPENSSL, [openssl],[
-	use_openssl="yes"
-    AC_SUBST(OPENSSL_CFLAGS)
-    AC_SUBST(OPENSSL_LIBS)
-    AC_DEFINE(HAVE_OPENSSL, [1], ["openssl library is available"])
-    AC_CHECK_HEADERS([openssl/rand.h openssl/sha.h],[], [AC_MSG_ERROR([openssl extension requested, but no header files found. ssl extensions are disabled.])]) 
-    ], [
-    use_openssl="no"
-    AC_MSG_ERROR([openssl extension requested, but no openssl library is found. ssl extensions are disabled.])
+	PKG_CHECK_MODULES(OPENSSL, [openssl],[
+		use_openssl="yes"
+    	AC_SUBST(OPENSSL_CFLAGS)
+    	AC_SUBST(OPENSSL_LIBS)
+    	AC_DEFINE(HAVE_OPENSSL, [1], ["openssl library is available"])
+    	AC_CHECK_HEADERS([openssl/rand.h openssl/sha.h],[], [AC_MSG_ERROR([openssl extension requested, but no header files found. ssl extensions are disabled.])]) 
+    	], [
+    	use_openssl="no"
+    	AC_MSG_WARN([openssl extension requested, but no openssl library is found. ssl extensions are disabled.])
+	])
+],[
+	use_openssl="no"
 ])
 
 AM_CONDITIONAL(OPENSSL, test x$use_openssl = xyes)

@@ -5,7 +5,7 @@ includedir=@includedir@
 
 Name: dtndht
 Description: DTN DHT library (pure C)
-Requires: libssl, libcrypto, openssl
+Requires:
 Version: @VERSION@
 Libs: -L${libdir} -l@GENERIC_LIBRARY_NAME@ @OPENSSL_LIBS@
 Cflags: -I${includedir}/@GENERIC_LIBRARY_NAME@-@GENERIC_API_VERSION@ -I${libdir}/@GENERIC_LIBRARY_NAME@-@GENERIC_API_VERSION@/include @OPENSSL_CFLAGS@

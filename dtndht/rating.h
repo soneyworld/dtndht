@@ -12,7 +12,21 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string.h>
+#ifdef HAVE_OPENSSL_SHA_H
 #include <openssl/sha.h>
+#else
+#include "sha1.h"
+#define SHA_CTX sha1_context
+#define SHA_DIGEST_LENGTH 20
+#define SHA1_Init( CTX ) \
+        sha1_starts( (CTX) )
+#define SHA1( BUF, LEN, OUT) \
+		sha1((BUF), (unsigned char *)(LEN), (OUT))
+#define SHA1_Update(  CTX, BUF, LEN ) \
+        sha1_update( (CTX), (unsigned char *)(BUF), (LEN) )
+#define SHA1_Final( OUT, CTX ) \
+        sha1_finish( (CTX), (OUT) )
+#endif
 
 struct dht_result_rating {
 	struct sockaddr_storage *ss;

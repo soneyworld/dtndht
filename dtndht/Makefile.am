@@ -22,6 +22,11 @@ h_sources += evaluation.h
 c_sources += evaluation.c
 endif
 
+if !OPENSSL
+h_sources += sha1.h
+c_sources += sha1.c
+endif
+
 library_includedir=$(includedir)/$(GENERIC_LIBRARY_NAME)-$(GENERIC_API_VERSION)/$(GENERIC_LIBRARY_NAME)
 library_include_HEADERS = $(include_h_sources)
 

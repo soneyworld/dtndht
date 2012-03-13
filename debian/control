@@ -6,7 +6,6 @@ Standards-Version: 3.9.2
 Section: libs
 Homepage: http://www.ibr.cs.tu-bs.de/
 Vcs-Git: git://git.ibr.cs.tu-bs.de.org/libdtndht.git
-#Vcs-Browser: http://git.debian.org/?p=collab-maint/dtndht.git;a=summary
 
 Package: dtndht-dev
 Section: libdevel

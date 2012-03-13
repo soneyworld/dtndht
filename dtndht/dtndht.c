@@ -7,7 +7,9 @@
 #include <time.h>
 #include <string.h>
 #include <arpa/inet.h>
+#ifdef HAVE_OPENSSL_RAND_H
 #include <openssl/rand.h>
+#endif
 #include <netdb.h>
 #include <stdint.h>
 #include "dht.h"
@@ -16,7 +18,11 @@
 #include "bootstrapping.h"
 #include "utils.h"
 #include "list.h"
+#ifdef HAVE_OPENSSL_SHA_H
 #include <openssl/sha.h>
+#else
+#define SHA_DIGEST_LENGTH 20
+#endif
 #include <netinet/in.h>
 #include <unistd.h>
 
@@ -225,7 +231,7 @@ int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
 	(*ctx).minimum_rating = 0;
 	(*ctx).clayer = NULL;
 	// generate ID
-	return (RAND_bytes((*ctx).id, SHA_DIGEST_LENGTH) == 1);
+	return dht_random_bytes((*ctx).id, SHA_DIGEST_LENGTH);
 }
 
 int dtn_dht_init(struct dtn_dht_context *ctx) {
