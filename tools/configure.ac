@@ -16,7 +16,8 @@ AC_CHECK_HEADERS([fcntl.h])
 AC_CHECK_HEADERS([netinet/in.h])
 AC_CHECK_HEADERS([sys/socket.h])
 
-PKG_CHECK_MODULES([DTNDHT], dtndht >= 0.2.1)
+PKG_CHECK_MODULES([DTNDHT], dtndht >= 0.2.2)
+PKG_CHECK_MODULES([OPENSSL], openssl)
 
 AC_CONFIG_FILES(Makefile src/Makefile)
 AC_OUTPUT

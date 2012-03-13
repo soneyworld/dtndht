@@ -47,7 +47,6 @@ static size_t minimum_rating = 1;
 #define REANNOUNCE_THRESHOLD 600
 #endif
 
-
 static struct list announcetable;
 static struct list lookuptable;
 
@@ -95,6 +94,8 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 			}
 		}
 #endif
+		// Inform the user of the lib about the completeness of the search for this info_hash
+		dtn_dht_operation_done(info_hash);
 		return;
 	}
 	if (!(event == DHT_EVENT_VALUES || event == DHT_EVENT_VALUES6))

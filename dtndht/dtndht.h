@@ -118,9 +118,15 @@ unsigned int dtn_dht_blacklisted_nodes(unsigned int *ipv4_return,
 // Returns the number of nodes available, and also the good and dubious nodes
 int dtn_dht_nodes(int af, int *good_return, int *dubious_return);
 
-// callback function: Must be provided by the user
+// callback functions: Must be provided by the user
 // Lookup of an eid was successful
 void dtn_dht_handle_lookup_result(const struct dtn_dht_lookup_result *result);
+
+// Is called if a DHT Search is finished. This could have multiple reasons
+// First: A Lookup is done
+// Second: A Announcement is done
+// Third: A Search for a random hash is done
+void dtn_dht_operation_done(const unsigned char *info_hash);
 
 // functions for self implemented bootstrapping methods
 // inserting a known dht node (use this only, if you know the node.

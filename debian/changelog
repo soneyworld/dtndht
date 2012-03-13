@@ -1,3 +1,12 @@
+dtndht (0.2.2) experimental; urgency=low
+
+  * New callback function to inform, if a search is done
+  * Removed the requirement of openssl
+    * Changed openssl to optional
+    * Added sha1 implementation of PolarSSL
+    
+-- Till Lorentzen <lorentze@ibr.cs.tu-bs.de> Tue, 13 Mar 2012 3:00:00 +0100    
+
 dtndht (0.2.1) experimental; urgency=low
 
   * New possibility to enable evaluation output

@@ -72,7 +72,7 @@ AC_TYPE_UINT8_T
 
 # Checks for library functions.
 AC_FUNC_REALLOC
-AC_CHECK_FUNCS([gettimeofday inet_ntoa memmove memset select socket strtol memchr])
+AC_CHECK_FUNCS([gettimeofday inet_ntoa memmove memset select socket strtol memchr memmem])
 
 AC_ARG_WITH([openssl],AS_HELP_STRING([--with-openssl], [build with openssl support instead of own implementation]),[
 # check for openssl
