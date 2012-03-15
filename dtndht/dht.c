@@ -333,7 +333,7 @@ static time_t token_bucket_time;
 static int token_bucket_tokens;
 
 FILE *dht_debug = NULL;
-#ifndef DEBUG
+#ifdef DEBUG
 #ifdef __GNUC__
 __attribute__ ((format (printf, 1, 2)))
 #endif
