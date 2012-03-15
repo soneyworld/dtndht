@@ -112,7 +112,6 @@ int main(void) {
 	int ready = 0;
 	unsigned char _buf[4096];
 	dtn_dht_initstruct(&_context);
-	_context.type = IPV4ONLY;
 	if (dtn_dht_init_sockets(&_context) != 0) {
 		dtn_dht_close_sockets(&_context);
 		return -1;
