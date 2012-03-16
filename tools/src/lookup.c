@@ -33,7 +33,6 @@ static void init_signal(void) {
 }
 
 static int _bootstrapped = 0;
-static int _lookups = 0;
 static struct dtn_dht_context _context;
 void bootstrapping() {
 	if (_bootstrapped > time(NULL) + 30) {
@@ -44,9 +43,7 @@ void bootstrapping() {
 }
 
 void dtn_dht_operation_done(const unsigned char *info_hash) {
-	_lookups--;
-	if (_lookups == 0)
-		exiting = 1;
+	exiting = 1;
 	return;
 }
 
@@ -107,9 +104,14 @@ void dtn_dht_handle_lookup_result(const struct dtn_dht_lookup_result *result) {
 	return;
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+	if (argc != 2) {
+		printf("usage: dhtlookup <eid>\n\n");
+		return -1;
+	}
 	int rc = 0;
 	int ready = 0;
+	int lookup_done = 0;
 	unsigned char _buf[4096];
 	dtn_dht_initstruct(&_context);
 	if (dtn_dht_init_sockets(&_context) != 0) {
@@ -131,15 +133,15 @@ int main(void) {
 			bootstrapping();
 		}
 		ready = dtn_dht_ready_for_work(&_context);
+		if (ready && !lookup_done) {
+			dtn_dht_lookup(&_context, argv[1], strlen(argv[1]));
+			lookup_done = 1;
+		}
 		struct timeval tv;
 		fd_set readfds;
 		tv.tv_sec = tosleep;
 		tv.tv_usec = random() % 1000000;
 		FD_ZERO(&readfds);
-		if (ready) {
-			FD_SET(STDIN_FILENO, &readfds);
-			high_fd = MAX(high_fd, STDIN_FILENO);
-		}
 		FD_SET(_context.ipv4socket, &readfds);
 		FD_SET(_context.ipv6socket, &readfds);
 		rc = select(high_fd + 1, &readfds, NULL, NULL, &tv);
@@ -155,14 +157,6 @@ int main(void) {
 					_context.ipv6socket, &readfds)) {
 				rc = recvfrom(_context.ipv6socket, _buf, sizeof(_buf) - 1, 0,
 						(struct sockaddr*) &from, &fromlen);
-			} else if (FD_ISSET(STDIN_FILENO, &readfds)) {
-				char mystring[1000];
-				if (gets(mystring) != NULL) {
-					_lookups++;
-					dtn_dht_lookup(&_context, (const char*) mystring,
-							strlen((const char*) mystring));
-				}
-				rc = 0;
 			}
 		}
 		if (rc > 0) {
