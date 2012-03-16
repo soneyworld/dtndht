@@ -48,7 +48,9 @@ int dht_search(const unsigned char *id, int port, int af,
 		dht_callback *callback, void *closure);
 int dht_nodes(int af, int *good_return, int *dubious_return,
 		int *cached_return, int *incoming_return);
+#ifdef DEBUG
 void dht_dump_tables(FILE *f);
+#endif
 int dht_get_nodes(struct sockaddr_in *sin, int *num, struct sockaddr_in6 *sin6,
 		int *num6);
 int dht_uninit(void);

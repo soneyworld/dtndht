@@ -1438,7 +1438,7 @@ int dht_nodes(int af, int *good_return, int *dubious_return,
 		*incoming_return = incoming;
 	return good + dubious;
 }
-
+#ifdef DEBUG
 static void dump_bucket(FILE *f, struct bucket *b) {
 	struct node *n = b->nodes;
 	fprintf(f, "Bucket ");
@@ -1552,6 +1552,8 @@ void dht_dump_tables(FILE *f) {
 	fprintf(f, "\n\n");
 	fflush(f);
 }
+
+#endif
 
 int dht_init(int s, int s6, const unsigned char *id, const unsigned char *v) {
 	int rc;
@@ -3030,12 +3032,12 @@ static int parse_dtn_convergence_layer(const unsigned char *buf, int buflen, con
 				case AF_INET:
 					ip->value = (char*) malloc(INET_ADDRSTRLEN);
 					inet_ntop(from->sa_family, &((struct sockaddr_in *) from)->sin_addr, ip->value, INET_ADDRSTRLEN);
-					ip->valuelen = INET_ADDRSTRLEN;
+					ip->valuelen = strlen(ip->value);
 					break;
 				case AF_INET6:
 					ip->value = (char*) malloc(INET6_ADDRSTRLEN);
 					inet_ntop(from->sa_family, &((struct sockaddr_in6 *) from)->sin6_addr, ip->value, INET6_ADDRSTRLEN);
-					ip->valuelen = INET6_ADDRSTRLEN;
+					ip->valuelen = strlen(ip->value);
 					break;
 				}
 				ip->next = layers->args;
