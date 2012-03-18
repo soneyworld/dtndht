@@ -14,7 +14,6 @@
 
 static int dht_has_been_ready = 0;
 
-
 int bootstrapping_dns(struct dtn_dht_context *ctx, const char* name,
 		const char* service) {
 	struct addrinfo hints;
@@ -61,14 +60,15 @@ int bootstrapping_dns(struct dtn_dht_context *ctx, const char* name,
 			if (rp->ai_addr->sa_family == AF_INET) {
 				struct sockaddr_in *ipv4 = (struct sockaddr_in *) rp->ai_addr;
 				portNumber = ipv4->sin_port;
-				printf("ERROR %d: host: %s : %d\n", error,
+				fprintf(stderr, "ERROR %d: host: %s : %d\n", error,
 						inet_ntoa(ipv4->sin_addr), portNumber);
 			} else {
 				char straddr[INET6_ADDRSTRLEN];
 				struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *) rp->ai_addr;
 				portNumber = ipv6->sin6_port;
 				inet_ntop(AF_INET6, &ipv6->sin6_addr, straddr, sizeof(straddr));
-				printf("ERROR %d: host: %s : %d\n", error, straddr, portNumber);
+				fprintf(stderr, "ERROR %d: host: %s : %d\n", error, straddr,
+						portNumber);
 			}
 			rc--;
 		}
