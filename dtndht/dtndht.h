@@ -1,5 +1,10 @@
 #ifndef DTNDHT_INCLUDED
 #define DTNDHT_INCLUDED
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 #include <sys/socket.h>
 
@@ -136,5 +141,9 @@ dtn_dht_insert_node(const unsigned char *id, struct sockaddr *sa, int salen);
 // pinging a possible dht node (normal way to add a possible dht node
 // method is better/softer than inserting a node and should be used)
 int dtn_dht_ping_node(struct sockaddr *sa, int salen);
+
+#ifdef __cplusplus
+} /* closing brace for extern "C" */
+#endif
 
 #endif
