@@ -1,3 +1,4 @@
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -13,7 +14,6 @@
 #include <netdb.h>
 #include <stdint.h>
 #include "dht.h"
-#include "config.h"
 #include "dtndht.h"
 #include "bootstrapping.h"
 #include "utils.h"
@@ -210,7 +210,7 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 #endif
 			dht_ping_dtn_node((struct sockaddr*) &ss[i], fromlen);
 #ifdef RATING_SUPPORT
-		}
+	}
 #endif
 	}
 #ifdef RATING_SUPPORT
@@ -236,6 +236,15 @@ int dtn_dht_initstruct(struct dtn_dht_context *ctx) {
 }
 
 int dtn_dht_init(struct dtn_dht_context *ctx) {
+#ifdef EVALUATION
+	printf_evaluation_start();
+	printf("DHT_INIT IPV4=%d IPV6=%d PORT=%d ID=",(*ctx).ipv4socket, (*ctx).ipv6socket,(*ctx).port);
+	printf_hash((*ctx).id);
+#ifdef RATING_SUPPORT
+	printf(" MINIMUM_RATING=%d",(*ctx).minimum_rating);
+#endif
+	printf("\n");
+#endif
 #ifdef RATING_SUPPORT
 	minimum_rating = (*ctx).minimum_rating;
 #endif
@@ -350,6 +359,10 @@ int dtn_dht_init_sockets(struct dtn_dht_context *ctx) {
 }
 
 int dtn_dht_uninit(void) {
+#ifdef EVALUATION
+	printf_evaluation_start();
+	printf("DHT_UNINIT\n");
+#endif
 #ifdef RATING_SUPPORT
 	free_ratings();
 #endif
