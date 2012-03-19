@@ -25,7 +25,7 @@ void printf_time(void) {
 		}
 		i++;
 	}
-	printf("%s", str);
+	printf("%s TIME=%ld", str, timer);
 }
 
 void printf_evaluation_start(void) {
