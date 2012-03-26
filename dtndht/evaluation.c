@@ -39,3 +39,8 @@ void printf_hash(const unsigned char *buf) {
 		printf("%02x", buf[i]);
 	}
 }
+
+void fflush_evaluation(void){
+	printf("\n");
+	fflush(stdout);
+}

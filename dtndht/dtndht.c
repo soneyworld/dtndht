@@ -65,7 +65,7 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 			printf_evaluation_start();
 			printf("SEARCH_DONE_EVENT HASH=");
 			printf_hash(info_hash);
-			printf("\n");
+			fflush_evaluation();
 #endif
 			switch (entry->status) {
 			case SEARCHING:
@@ -85,12 +85,12 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 				printf_evaluation_start();
 				printf("ANNOUNCE_DONE_EVENT HASH=");
 				printf_hash(info_hash);
-				printf("\n");
+				fflush_evaluation();
 			} else {
 				printf_evaluation_start();
 				printf("UNKNOWN_HASH_DONE_EVENT HASH=");
 				printf_hash(info_hash);
-				printf("\n");
+				fflush_evaluation();
 			}
 		}
 #endif
@@ -218,7 +218,8 @@ static void callback(void *closure, int event, unsigned char *info_hash,
 #endif
 	free(ss);
 #ifdef EVALUATION
-	printf("-------------------------------------------------------\n");
+	printf("-------------------------------------------------------");
+	fflush_evaluation();
 #endif
 }
 
@@ -243,7 +244,7 @@ int dtn_dht_init(struct dtn_dht_context *ctx) {
 #ifdef RATING_SUPPORT
 	printf(" MINIMUM_RATING=%d",(*ctx).minimum_rating);
 #endif
-	printf("\n");
+	fflush_evaluation();
 #endif
 #ifdef RATING_SUPPORT
 	minimum_rating = (*ctx).minimum_rating;
@@ -361,7 +362,8 @@ int dtn_dht_init_sockets(struct dtn_dht_context *ctx) {
 int dtn_dht_uninit(void) {
 #ifdef EVALUATION
 	printf_evaluation_start();
-	printf("DHT_UNINIT\n");
+	printf("DHT_UNINIT");
+	fflush_evaluation();
 #endif
 #ifdef RATING_SUPPORT
 	free_ratings();
@@ -416,7 +418,7 @@ int dtn_dht_search(struct dtn_dht_context *ctx, const unsigned char *id,
 		printf("DHT_SEARCH HASH=");
 	}
 	printf_hash(id);
-	printf("\n");
+	fflush_evaluation();
 #endif
 	int rc = 0;
 	switch (ctx->type) {
@@ -465,7 +467,7 @@ int dtn_dht_lookup(struct dtn_dht_context *ctx, const char *eid, size_t eidlen) 
 		printf_evaluation_start();
 		printf("START_LOOKUP EID=%s HASH=", eid);
 		printf_hash(key);
-		printf("\n");
+		fflush_evaluation();
 #endif
 		return dtn_dht_search(ctx, key, 0);
 	} else {
@@ -494,7 +496,7 @@ int dtn_dht_announce(struct dtn_dht_context *ctx, const char *eid,
 			printf_evaluation_start();
 			printf("START_ANNOUNCE EID=%s HASH=", eid);
 			printf_hash(key);
-			printf("\n");
+			fflush_evaluation();
 #endif
 			return dtn_dht_search(ctx, key, ctx->port);
 		}
