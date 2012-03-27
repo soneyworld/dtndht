@@ -226,7 +226,12 @@ void bootstrapping_start_random_lookup(struct dtn_dht_context *ctx,
 		blacklist_blacklist_id(randomhash);
 	}
 #endif
-
+#ifdef EVALUATION
+	printf_evaluation_start();
+	printf("RANDOM_HASH_REQUEST HASH=");
+	printf_hash(randomhash);
+	fflush_evaluation();
+#endif
 	if ((*ctx).ipv4socket >= 0) {
 		dht_search(randomhash, 0, AF_INET, callback, NULL);
 	}
