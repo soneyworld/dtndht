@@ -13,6 +13,9 @@
 #include <stdlib.h>
 #ifdef HAVE_OPENSSL_RAND_H
 #include <openssl/rand.h>
+#else
+// is true, if srand(time(NULL) has been executed
+static int initialized_random = 0;
 #endif
 #ifdef HAVE_OPENSSL_SHA_H
 #include <openssl/sha.h>
@@ -169,7 +172,10 @@ int dht_random_bytes(void *buf, size_t size) {
 #else
 	size_t i;
 	unsigned char *b = (unsigned char* )buf;
-	srand(time(NULL));
+	if(!initialized_random){
+		srand(time(NULL));
+		initialized_random = 1;
+	}
 	for(i=0;i<size;i++) {
 		b[i] = (unsigned char) rand();
 	}
