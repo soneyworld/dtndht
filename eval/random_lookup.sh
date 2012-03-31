@@ -3,7 +3,7 @@ IBRDTN_PATH=/home/till/sources/ibrdtn-dht
 RAND=$RANDOM
 IBRDTN_DAEMON="$IBRDTN_PATH/daemon/src/dtnd -c /home/till/dtnd.conf --nodiscover"
 IBRDTN_PING="$IBRDTN_PATH/tools/src/dtnping --nowait --count 1 --src random_lookup_evaluation --size 1"
-LOG_FILE="evaluation_random_lookups_$RAND.log"
+LOG_FILE="evaluation_random_lookups_$(date +%Y%m%d)_$RAND.log"
 
 echo "RUNNING RANDOM LOOKUP EVALUATION: $LOG_FILE"
 if [ ! -d $IBRDTN_PATH ]; then
