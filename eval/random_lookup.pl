@@ -3,13 +3,18 @@ use strict;
 use warnings;
 
 my $num_args = $#ARGV + 1;
-if ($num_args != 2) {
-  print "Invalid number of arguments!\n\nUsage: inputfile outputfile\n";
+if ($num_args < 1) {
+  print "Invalid number of arguments!\n\nUsage: inputfile [inputfile ...]\n";
   exit;
 }
 
-my $inputfile = $ARGV[0];
-my $outputfile= $ARGV[1];
+foreach (@ARGV) {
+	parseFile($_);
+}
+
+sub parseFile {
+my $inputfile = $_[0];
+my $outputfile= $_[0] . ".csv";
 open(IN, $inputfile);
 
 #  key: EID  value: Anzahl der antwortenden IP's
@@ -89,31 +94,35 @@ while ($line)
 
 close(IN);
 open(OUT,">$outputfile");
+
+print OUT "EID;NumberOfAnsweringNodes;NumberOfPossibleTargets\n";
 foreach ( values %eids ) {
 	my $eid = $_;
 	my $count = $answers{"$eid"};
 	my $value_count = $values{"$eid"};
-	print OUT "$eid: $count $value_count\n";
+	print OUT "$eid;$count;$value_count\n";
 }
 
 print OUT "\n---------------------------------------\n\n";
+print OUT "AnsweringIP;Port;Country\n";
 foreach (@answering_ips) {
 	my @tokens = split(/_/, $_ );
 	my $ip = $tokens[0];
 	my $port = $tokens[1];
 	my $country = geoip("$ip");
-	print OUT "$ip $port $country\n";
+	print OUT "$ip;$port;$country\n";
 }
 print OUT "\n---------------------------------------\n\n";
+print OUT "PossibleTarget;Port;Country\n";
 foreach (@value_ips) {
 	my @tokens = split(/_/, $_ );
 	my $ip = $tokens[0];
 	my $port = $tokens[1];
 	my $country = geoip("$ip");
-	print OUT "$ip $port $country\n";
+	print OUT "$ip;$port;$country\n";
 }
 close(OUT);
-
+}#End parse File
 
 sub geoip
 {

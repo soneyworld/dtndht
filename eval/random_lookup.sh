@@ -1,8 +1,8 @@
 #!/bin/bash
 IBRDTN_PATH=/home/till/sources/ibrdtn-dht
 RAND=$RANDOM
-IBRDTN_DAEMON="$IBRDTN_PATH/daemon/src/dtnd -c /home/till/dtnd.conf --nodiscover"
-IBRDTN_PING="$IBRDTN_PATH/tools/src/dtnping --nowait --count 1 --src random_lookup_evaluation --size 1"
+IBRDTN_DAEMON="$IBRDTN_PATH/daemon/src/dtnd -c /home/till/dtnd.conf --nodiscover --timestamp"
+IBRDTN_PING="$IBRDTN_PATH/tools/src/dtnping --nowait --count 1 --src random_lookup_evaluation --size 1 --lifetime 3600"
 LOG_FILE="evaluation_random_lookups_$(date +%Y%m%d)_$RAND.log"
 
 echo "RUNNING RANDOM LOOKUP EVALUATION: $LOG_FILE"
@@ -13,7 +13,7 @@ fi
 echo "start ibrdtn daemon process"
 $IBRDTN_DAEMON > $LOG_FILE &
 IBRDTN_DAEMON_PID=$!
-sleep 10s
+sleep 1m
 echo "start dtnping processes for random lookups"
 for (( c=0; c<100; c++ ))
 do
