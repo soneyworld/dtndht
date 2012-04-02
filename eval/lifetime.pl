@@ -15,6 +15,8 @@ my %announcement;
 
 # Key is sha1 of the announced string, value is the duration
 my %announcement_duration;
+# Key is sha1 of the announced string, value is the start timestamp
+my %announcement_timings;
 
 my $announcement_output_file = "announcement_duration.csv";
 
@@ -23,11 +25,21 @@ foreach (@ARGV) {
 }
 
 open(OUT, ">$announcement_output_file");
-print OUT "EID;HASH;DURATION\n";
+print OUT "EID;HASH;START;DURATION\n";
+my %lines;
 foreach ( keys %announcement_duration ) {
 	my $eid = $announcement{"$_"};
+	my $start = $announcement_timings{"$_"};
 	my $duration = $announcement_duration{"$_"};
-	print OUT "$eid;$_;$duration\n";
+	if( exists $lines{$start} ) {
+		$lines{$start} .= "$eid;$_;$start;$duration\n";
+	} else {
+		$lines{$start} = "$eid;$_;$start;$duration\n";
+	}
+}
+my $time;
+foreach $time (sort keys %lines) {
+  print OUT "$lines{$time}";
 }
 
 close(OUT);
@@ -67,6 +79,7 @@ sub parseFile
 				my $time = extractTime($line);
 				$announcement{"$sha1"} = "$eid";
 				$announcement_duration{"$sha1"} = "$time";
+				$announcement_timings{"$sha1"} = "$time";
 			}
 			
 			if ($line =~ m/DHT-EVALUATION ANNOUNCE_DONE_EVENT HASH=/) {

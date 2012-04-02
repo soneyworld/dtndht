@@ -1,3 +1,4 @@
 evaluation_*.log
 *.csv
 *~
+*.png
