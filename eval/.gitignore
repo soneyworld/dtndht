@@ -2,3 +2,5 @@ evaluation_*.log
 *.csv
 *~
 *.png
+*.csv.eps
+*.csv.plt

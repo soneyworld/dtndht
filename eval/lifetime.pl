@@ -2,6 +2,9 @@
 use strict;
 use warnings;
 
+my $PNG_OUTPUT_SIZE_X = 600;
+my $PNG_OUTPUT_SIZE_Y = 400;
+
 my $num_args = $#ARGV + 1;
 if ($num_args < 1) {
   print "Invalid number of arguments!\n\nUsage: inputfile [inputfile ...]\n";
@@ -49,6 +52,9 @@ sub parseFile
 {
 	my $inputfile = $_[0];
 	my $outputfile= $_[0] . ".csv";
+	my $gnuplot_outputfile = $outputfile . ".plt";
+	my $gnuplot_output_png = $outputfile . ".png";
+	my $gnuplot_output_eps = $outputfile . ".eps";
 	# Start of first Lookup
 	my $startOfLookups = 0;
 	my @lookupTimings;
@@ -135,7 +141,7 @@ sub parseFile
 	close(IN);
 
 	open(OUT,">$outputfile");
-	print OUT "Lookup;CompleteDuration;DurationToFirstCorrectValue;SecondCorrectValue;ThirdCorrectValue;InvalidValueCount;\n";
+	print OUT "Lookup;StartUntilFirstLookupCall;CompleteDuration;DurationToFirstCorrectValue;SecondCorrectValue;ThirdCorrectValue;InvalidValueCount;\n";
 	my $i = 0;
 	foreach ( @lookupDurations ) {
 		my $lookup = $i + 1;
@@ -144,10 +150,30 @@ sub parseFile
 		my $second = $secondHit[$i];
 		my $third = $thirdHit[$i];
 		my $invalid = $invalidValueCount[$i];
-		print OUT "$lookup;$duration;$first;$second;$third;$invalid;\n";
+		my $start = $lookupTimings[$i] - $startOfLookups;
+		print OUT "$lookup;$start;$duration;$first;$second;$third;$invalid;\n";
 		$i++;
 	}
 	close(OUT);
+	open( PLOT , ">$gnuplot_outputfile" );
+	print PLOT "set terminal png truecolor font small size $PNG_OUTPUT_SIZE_X,$PNG_OUTPUT_SIZE_Y\nset output \'$gnuplot_output_png\'\n";
+	print PLOT "set datafile separator \";\"\n";
+	print PLOT "set xlabel 'duration until starting first lookup [sec]'\n";
+	print PLOT "set ylabel 'duration until start of lookup [sec]'\n";
+	print PLOT "set xrange [0:3600]\n";
+	print PLOT "set yrange [0:300]\n";
+#	print PLOT "set multiplot\n";
+	print PLOT "plot '$outputfile' every::1::30 using 2:4 with linespoints title \"first correct answer\", \\\n";
+	print PLOT "     '$outputfile' every::1::30 using 2:5 with linespoints title \"second correct answer\", \\\n";
+	print PLOT "     '$outputfile' every::1::30 using 2:6 with linespoints title \"third correct answer\", \\\n";
+	print PLOT "     '$outputfile' every::1::30 using 2:3 with histeps title \"complete duration\"\n";
+#	print PLOT "set parametric\n";
+#	print PLOT "const=1800\n";
+#	print PLOT "plot const,t title \"30 minutes until start\"\n";
+	print PLOT "set output \"$gnuplot_output_eps\"\n";
+	print PLOT "set terminal postscript eps\n";
+	print PLOT "replot\n";
+	close(PLOT);
 }# End parseFile
 
 sub extractTime 
