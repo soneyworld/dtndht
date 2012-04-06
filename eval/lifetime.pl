@@ -7,7 +7,7 @@ my $PNG_OUTPUT_SIZE_Y = 400;
 
 my $num_args = $#ARGV + 1;
 if ($num_args < 1) {
-  print "Invalid number of arguments!\n\nUsage: inputfile [inputfile ...]\n";
+  print "Invalid number of arguments!\n\nUsage: lifetime.pl inputfile [inputfile ...]\n";
   exit;
 }
 
@@ -22,6 +22,9 @@ my %announcement_duration;
 my %announcement_timings;
 
 my $announcement_output_file = "announcement_duration.csv";
+
+# List of all files, which has to be given to lookup_concat.pl
+my @lookup_concat_files;
 
 foreach (@ARGV) {
 	parseFile($_);
@@ -47,12 +50,17 @@ foreach $time (sort keys %lines) {
 
 close(OUT);
 
+# Call lookup_concat.pl with all generated files
+lookup_concat(@lookup_concat_files);
+
+exit;
 
 sub parseFile
 {
 	my $inputfile = $_[0];
 	my $outputfile= $_[0] . ".csv";
 	my $gnuplot_outputfile = $outputfile . ".plt";
+	push (@lookup_concat_files, $outputfile);
 	my $gnuplot_output_png = $outputfile . ".png";
 	my $gnuplot_output_eps = $outputfile . ".eps";
 	# Start of first Lookup
@@ -60,6 +68,7 @@ sub parseFile
 	my @lookupTimings;
 	my @lookupDurations;
 	my $lookupCounter = 0;
+	my $eid;
 
 	# Time of the first valid hit
 	my @firstHit;
@@ -80,7 +89,7 @@ sub parseFile
 		# Zeile gehört zum Output der LIB
 		if ($line =~ m/DHT-EVALUATION/) {
 			if ($line =~ m/START_ANNOUNCE EID=/) {
-				my $eid = extractEID($line);
+				$eid = extractEID($line);
 				my $sha1 = extractHash($line);
 				my $time = extractTime($line);
 				$announcement{"$sha1"} = "$eid";
@@ -91,7 +100,7 @@ sub parseFile
 			if ($line =~ m/DHT-EVALUATION ANNOUNCE_DONE_EVENT HASH=/) {
 				my $sha1 = extractHash($line);
 				my $time = extractTime($line);
-				my $eid = $announcement{"$sha1"};
+#				my $eid = $announcement{"$sha1"};
 				my $duration = $time - $announcement_duration{"$sha1"};
 				$announcement_duration{"$sha1"} = $duration;
 			}
@@ -156,17 +165,20 @@ sub parseFile
 	}
 	close(OUT);
 	open( PLOT , ">$gnuplot_outputfile" );
-	print PLOT "set terminal png truecolor font small size $PNG_OUTPUT_SIZE_X,$PNG_OUTPUT_SIZE_Y\nset output \'$gnuplot_output_png\'\n";
+	print PLOT "set terminal png truecolor font \"Helvetica\" 10 size $PNG_OUTPUT_SIZE_X,$PNG_OUTPUT_SIZE_Y\nset output \'$gnuplot_output_png\'\n";
 	print PLOT "set datafile separator \";\"\n";
-	print PLOT "set xlabel 'duration until starting first lookup [sec]'\n";
+	print PLOT "set title \"Periodic lookup of $eid\" font \"Helvetica,12\"\n";
+	print PLOT "set xlabel 'time until starting first lookup [sec]'\n";
 	print PLOT "set ylabel 'duration until start of lookup [sec]'\n";
 	print PLOT "set xrange [0:3600]\n";
 	print PLOT "set yrange [0:300]\n";
+	print PLOT "set xtics 600\n";
+	print PLOT "set ytics 60\n";
 #	print PLOT "set multiplot\n";
-	print PLOT "plot '$outputfile' every::1::30 using 2:4 with linespoints title \"first correct answer\", \\\n";
-	print PLOT "     '$outputfile' every::1::30 using 2:5 with linespoints title \"second correct answer\", \\\n";
-	print PLOT "     '$outputfile' every::1::30 using 2:6 with linespoints title \"third correct answer\", \\\n";
-	print PLOT "     '$outputfile' every::1::30 using 2:3 with histeps title \"complete duration\"\n";
+	print PLOT "plot '$outputfile' every::1::30 using 2:4 title \"first correct answer\", \\\n";
+	print PLOT "     '$outputfile' every::1::30 using 2:5 title \"second correct answer\", \\\n";
+	print PLOT "     '$outputfile' every::1::30 using 2:6 title \"third correct answer\", \\\n";
+	print PLOT "     '$outputfile' every::1::30 using 2:3 with steps title \"complete duration\"\n";
 #	print PLOT "set parametric\n";
 #	print PLOT "const=1800\n";
 #	print PLOT "plot const,t title \"30 minutes until start\"\n";
@@ -214,4 +226,10 @@ sub extractEID
 	}
 	return $eid;
 }# End extractEID
+
+sub lookup_concat
+{
+	my $result = `perl lookup_concat.pl @_ 2>/dev/null`;
+	print $result;
+}
 

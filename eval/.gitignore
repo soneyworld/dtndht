@@ -4,3 +4,6 @@ evaluation_*.log
 *.png
 *.csv.eps
 *.csv.plt
+lookup*.eps
+lookup*.plt
+first_value_lookup.plt
