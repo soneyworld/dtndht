@@ -7,3 +7,9 @@ evaluation_*.log
 lookup*.eps
 lookup*.plt
 first_value_lookup.plt
+first_value_lookup.eps
+second_value_lookup.eps
+second_value_lookup.plt
+third_value_lookup.eps
+third_value_lookup.plt
+

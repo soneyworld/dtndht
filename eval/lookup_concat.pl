@@ -1,9 +1,10 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
+use Switch;
 
-my $PNG_OUTPUT_SIZE_X = 1400;
-my $PNG_OUTPUT_SIZE_Y = 1000;
+my $PNG_OUTPUT_SIZE_X = 1200;
+my $PNG_OUTPUT_SIZE_Y = 800;
 
 my $PNG_SUCCESS_OUTPUT_SIZE_X = 600;
 my $PNG_SUCCESS_OUTPUT_SIZE_Y = 400;
@@ -217,7 +218,7 @@ sub printCSV
 {
 	open(CSV, ">lookup_concat.csv");
 	my $i;
-	print CSV "lookup;min1;max1;min2;max2;min3;max3;average1;average2;average3;novalue1;novalue2;novalue3;success1;success2;success3;\n";
+	print CSV "lookup;min1;min2;min3;max1;max2;max3;average1;average2;average3;novalue1;novalue2;novalue3;success1;success2;success3;\n";
 	for($i = 0; $i < $maximum_Number_of_Lookups;$i++) {
 		my $average1 = "";
 		my $average2 = "";
@@ -285,7 +286,7 @@ sub printCSV
 				$success3 = "";
 			}
 		}
-		print CSV "". $i+1 . ";$min1;$max1;$min2;$max2;$min3;$max3;$average1;$average2;$average3;$novalue1;$novalue2;$novalue3;$success1;$success2;$success3;\n";
+		print CSV "". $i+1 . ";$min1;$min2;$min3;$max1;$max2;$max3;$average1;$average2;$average3;$novalue1;$novalue2;$novalue3;$success1;$success2;$success3;\n";
 	}
 	close(CSV);
 }
@@ -293,19 +294,9 @@ sub printCSV
 
 sub print_gnuplot_files
 {
-	open(FIRST, ">first_value_lookup.plt");
-	print FIRST "set terminal png truecolor font \"Helvetica\" 10 size $PNG_OUTPUT_SIZE_X,$PNG_OUTPUT_SIZE_Y\nset output \'first_value_lookup.png\'\n";
-	print FIRST "set datafile separator \";\"\n";
-	print FIRST "set title \"box-and-whisker with median bar and whiskerbars\"\n";
-	print FIRST "set ytics 60\n";
-	print FIRST "set xtics 1\n";
-	print FIRST "plot 'lookup_concat.csv' using 1:2:3:2:3 with candlesticks lt 3 lw 2 title 'First correct value' whiskerbars, \\\n";
-    print FIRST " ''                 using 1:8:8:8:8 with candlesticks lt -1 lw 2 notitle, \\\n";
-	print FIRST " ''                 using 1:4:5:4:5 with candlesticks lt 4 lw 2 title 'Second correct value' whiskerbars, \\\n";
-    print FIRST " ''                 using 1:9:9:9:9 with candlesticks lt -2 lw 2 notitle, \\\n";
-	print FIRST " ''                 using 1:6:7:6:7 with candlesticks lt 8 lw 2 title 'Third correct value' whiskerbars, \\\n";
-    print FIRST " ''                 using 1:10:10:10:10 with candlesticks lt -3 lw 2 notitle \n";
-	close(FIRST);
+	print_gnuplot_duration_summary("first_value_lookup",1);
+	print_gnuplot_duration_summary("second_value_lookup",2);
+	print_gnuplot_duration_summary("third_value_lookup",3);
 
 	open (SUCCESS, ">lookup_success.plt");
 	print SUCCESS "set terminal png truecolor font \"Helvetica\" 10 size $PNG_SUCCESS_OUTPUT_SIZE_X,$PNG_SUCCESS_OUTPUT_SIZE_Y\nset output \'lookup_success.png\'\n";
@@ -330,17 +321,44 @@ sub print_gnuplot_duration_summary
 	my $gnuplot_file = $_[0] . ".plt";
 	my $gnuplot_png_file = $_[0] . ".png";
 	my $gnuplot_eps_file = $_[0] . ".eps";
-	open( PLOT, ">$gnuplot_file.plt");
+	my $correctValue = $_[1];
+	my $min = $correctValue + 1;
+	my $max = $correctValue + 4;
+	my $lowquantil = $min;
+	my $highquantil = $max;
+	my $average = $correctValue + 7;
+	my $color = getColor($correctValue);
+	my $ratio = $correctValue + 13;
+	open( PLOT, ">$gnuplot_file");
 	print PLOT "set terminal png truecolor font \"Helvetica\" 10 size $PNG_OUTPUT_SIZE_X,$PNG_OUTPUT_SIZE_Y\nset output \'$gnuplot_png_file\'\n";
 	print PLOT "set datafile separator \";\"\n";
-	print PLOT "set title \"box-and-whisker with median bar and whiskerbars\"\n";
+	print PLOT "set title \"Duration until $correctValue correct value was found\"\n";
 	print PLOT "set ytics 60\n";
-	print PLOT "set xtics 1\n";
-	print PLOT "plot 'lookup_concat.csv' using 1:2:3:2:3 with candlesticks lt 3 lw 2 title 'First correct value' whiskerbars, \\\n";
-    print PLOT " ''                 using 1:8:8:8:8 with candlesticks lt -1 lw 2 notitle, \\\n";
-	print PLOT " ''                 using 1:4:5:4:5 with candlesticks lt 4 lw 2 title 'Second correct value' whiskerbars, \\\n";
-    print PLOT " ''                 using 1:9:9:9:9 with candlesticks lt -2 lw 2 notitle, \\\n";
-	print PLOT " ''                 using 1:6:7:6:7 with candlesticks lt 8 lw 2 title 'Third correct value' whiskerbars, \\\n";
-    print PLOT " ''                 using 1:10:10:10:10 with candlesticks lt -3 lw 2 notitle \n";
+	print PLOT "set xtics 1,1\n";
+	print PLOT "set y2range [0:100]\n";
+	print PLOT "set yrange [0:360]\n";
+	print PLOT "set xrange [0:42]\n";
+	print PLOT "set y2tics 10\n";
+	print PLOT "set xlabel 'Lookup Number'\n";
+	print PLOT "set ylabel 'Duration until start of lookup [sec]'\n";
+	print PLOT "set y2label 'Success ratio [%]'\n";
+	print PLOT "set ytics nomirror\n";
+	print PLOT "plot 'lookup_concat.csv' using 1:$min:$highquantil:$lowquantil:$max axis x1y1 with candlesticks lt $color lw 1 notitle whiskerbars, \\\n";
+    print PLOT " ''                 using 1:$average:$average:$average:$average axis x1y1 with candlesticks lt -1 lw 2 notitle, \\\n";
+	print PLOT " ''                 using 1:$ratio axis x1y2 with steps lt 1 title 'success ratio' \n";
+	print PLOT "set output \"$gnuplot_eps_file\"\n";
+	print PLOT "set terminal postscript eps\n";
+	print PLOT "replot\n";
 	close(PLOT);
 }
+
+sub getColor
+{
+	switch ($_[0]) {
+		case 1 {return 3}
+		case 2 {return 4}
+		case 3 {return 5}
+		else   {return $_[0] * -1}
+	}
+}
+

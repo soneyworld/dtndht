@@ -64,11 +64,17 @@ while ($line)
 					my @subtokens = split(/=/, $_);
 					$sha1 = $subtokens[1];
 					$eid = $eids{"$sha1"};
-					$answers{"$eid"} = $answers{"$eid"} + 1;
+					if (exists $answers{"$eid"}) {
+						$answers{"$eid"} = $answers{"$eid"} + 1;
+					} else {
+						$answers{"$eid"} = 1;
+					}
 				}
 				if( $_ =~ m/^COUNT=/) {
 					my @subtokens = split(/=/, $_);
-					$values{"$eid"} = $values{"$eid"} + $subtokens[1];
+					if(exists $values{"$eid"}) {
+						$values{"$eid"} = $values{"$eid"} + $subtokens[1];
+					}
 				}
 				if( $_ =~ m/^FROM=/) {
 					my @subtokens = split(/=/, $_);
@@ -79,7 +85,9 @@ while ($line)
 					$port = $subtokens[1];
 				}
 			}
-			push(@answering_ips,"$ip". "_" ."$port");
+			if( $ip ) {
+				push(@answering_ips,"$ip". "_" ."$port");
+			}
 			$line = <IN>;
 			while ( $line =~m/^---->/ ) {
 				@tokens = split(/\s+/, $line);

@@ -170,9 +170,9 @@ sub parseFile
 	print PLOT "set title \"Periodic lookup of $eid\" font \"Helvetica,12\"\n";
 	print PLOT "set xlabel 'time until starting first lookup [sec]'\n";
 	print PLOT "set ylabel 'duration until start of lookup [sec]'\n";
-	print PLOT "set xrange [0:3600]\n";
+	print PLOT "set xrange [-60:3600]\n";
 	print PLOT "set yrange [0:300]\n";
-	print PLOT "set xtics 600\n";
+	print PLOT "set xtics 0,600\n";
 	print PLOT "set ytics 60\n";
 #	print PLOT "set multiplot\n";
 	print PLOT "plot '$outputfile' every::1::30 using 2:4 title \"first correct answer\", \\\n";
