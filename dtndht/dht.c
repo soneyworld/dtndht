@@ -34,6 +34,9 @@
 // conditional options
 #include "config.h"
 #include "utils.h"
+#ifdef EVALUATION
+#include "evaluation.h"
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1070,6 +1073,14 @@ static void search_step(struct search *sr, dht_callback *callback,
 					all_acked = 0;
 #ifdef DEBUG
 					debugf("Sending announce_peer.\n");
+#endif
+#ifdef EVALUATION
+					printf_evaluation_start();
+					printf("SENDING_ANNOUNCE_MESSAGE HASH=");
+					printf_hash(sr->id);
+					printf(" ");
+					printf_sockaddr_storage(&n->ss);
+					fflush_evaluation();
 #endif
 					make_tid(tid, "ap", sr->tid);
 					send_announce_peer((struct sockaddr*) &n->ss,
