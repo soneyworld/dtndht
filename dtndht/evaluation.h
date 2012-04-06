@@ -28,4 +28,9 @@ void printf_hash(const unsigned char *buf);
  */
 void fflush_evaluation(void);
 
+/**
+ * prints: IP="given IP" PORT="given port"
+ */
+void printf_sockaddr_storage(const struct sockaddr_storage* ss);
+
 #endif /* EVALUATION_H_ */
