@@ -496,7 +496,7 @@ sub print_gnuplot_duration_summary
 	print PLOT "set ylabel 'Duration until start of lookup [sec]'\n";
 	print PLOT "set y2label 'Success ratio [%]'\n";
 	print PLOT "set ytics nomirror\n";
-	print PLOT "set boxwidth 0.2\n";
+	print PLOT "set boxwidth 0.4\n";
 	print PLOT "plot 'lookup_concat.csv' using 1:$lowquantil:$min:$max:$highquantil axis x1y1 with candlesticks lt $color lw 1 notitle whiskerbars, \\\n";
 #    print PLOT " ''                 using 1:$average:$average:$average:$average axis x1y1 with candlesticks lt -1 lw 2 notitle, \\\n";
     print PLOT " ''                 using 1:$median:$median:$median:$median axis x1y1 with candlesticks lt -1 lw 2 notitle, \\\n";
