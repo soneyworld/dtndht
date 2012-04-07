@@ -190,7 +190,7 @@ sub parseFile
 #	print PLOT "const=1800\n";
 #	print PLOT "plot const,t title \"30 minutes until start\"\n";
 	print PLOT "set output \"$gnuplot_output_eps\"\n";
-	print PLOT "set terminal postscript eps\n";
+	print PLOT "set terminal postscript enhanced color font \"Helvetica\" 10\n";
 	print PLOT "replot\n";
 	close(PLOT);
 }# End parseFile

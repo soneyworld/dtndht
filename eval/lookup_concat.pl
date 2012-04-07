@@ -463,7 +463,7 @@ sub print_gnuplot_files
 	print SUCCESS " ''                 using 1:16 axis x1y1 with lines title 'third correct value', \\\n";
 	print SUCCESS " ''                 using 1:17 axis x1y2 with histeps title 'invalid values per lookup [truncated]' \n";
 	print SUCCESS "set output \"lookup_success.eps\"\n";
-	print SUCCESS "set terminal postscript eps\n";
+	print SUCCESS "set terminal postscript enhanced color font \"Helvetica\" 10\n";
 	print SUCCESS "replot\n";
 	close(SUCCESS);
 }
@@ -502,7 +502,7 @@ sub print_gnuplot_duration_summary
     print PLOT " ''                 using 1:$median:$median:$median:$median axis x1y1 with candlesticks lt -1 lw 2 notitle, \\\n";
 	print PLOT " ''                 using 1:$ratio axis x1y2 with steps lt 1 title 'success ratio' \n";
 	print PLOT "set output \"$gnuplot_eps_file\"\n";
-	print PLOT "set terminal postscript eps\n";
+	print PLOT "set terminal postscript enhanced color font \"Helvetica\" 10\n";
 	print PLOT "replot\n";
 	close(PLOT);
 }
