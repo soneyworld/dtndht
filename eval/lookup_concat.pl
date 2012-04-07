@@ -9,6 +9,9 @@ my $PNG_OUTPUT_SIZE_Y = 800;
 my $PNG_SUCCESS_OUTPUT_SIZE_X = 600;
 my $PNG_SUCCESS_OUTPUT_SIZE_Y = 400;
 
+my $LOW_QUANTIL = 0.05;
+my $HIGH_QUANTIL = 0.95;
+
 my $num_args = $#ARGV + 1;
 if ($num_args < 1) {
   print "Invalid number of arguments!\n\nUsage: lookup_contact.pl inputfile [inputfile ...]\n";
@@ -27,12 +30,16 @@ my @maximum_Third_Value_Lookup;
 my @no_Correct_Value;
 my @no_Second_Correct_Value;
 my @no_Third_Correct_Value;
+my @invalid_Value;
 my @average_First_Value;
 my @average_Second_Value;
 my @average_Third_Value;
 my @average_First_Count;
 my @average_Second_Count;
 my @average_Third_Count;
+my @timings_First_Value;
+my @timings_Second_Value;
+my @timings_Third_Value;
 my @median_First_Value;
 my @median_Second_Value;
 my @median_Third_Value;
@@ -76,6 +83,9 @@ sub parseFile
 				addThirdValue($tokens[5], $lookupCounter);
 			} else {
 				addNoThirdCorrectValue($lookupCounter);
+			}
+			if ($tokens[6] =~ m/^(\d+)$/ ) {
+				addInvalidAnswer($lookupCounter, $tokens[6]);
 			}
 			if (exists $lookupCount[$lookupCounter]) {
 				$lookupCount[$lookupCounter]++;
@@ -122,6 +132,7 @@ sub addFirstValue
 	} else {
 		$average_First_Count[$lookupCounter] = 1;
 	}
+	addFirstTiming($lookupCounter,$first);
 }
 
 sub addSecondValue
@@ -152,6 +163,7 @@ sub addSecondValue
 	} else {
 		$average_Second_Count[$lookupCounter] = 1;
 	}
+	addSecondTiming($lookupCounter,$second);
 }
 
 sub addThirdValue
@@ -182,6 +194,7 @@ sub addThirdValue
 	} else {
 		$average_Third_Count[$lookupCounter] = 1;
 	}
+	addThirdTiming($lookupCounter,$third);
 }
 
 sub addNoCorrectValue
@@ -214,11 +227,55 @@ sub addNoThirdCorrectValue
 	}
 }
 
+sub addInvalidAnswer
+{
+	my $lookupCounter = $_[0];
+	my $count = $_[1];
+	if( exists $invalid_Value[$lookupCounter]) {
+		$invalid_Value[$lookupCounter] += $count;
+	} else {
+		$invalid_Value[$lookupCounter] = $count;
+	}
+}
+
+sub addFirstTiming
+{
+	my $lookupCounter = $_[0];
+	my $timing = $_[1];
+	if( exists $timings_First_Value[$lookupCounter]) {
+		$timings_First_Value[$lookupCounter] .= ";$timing";
+	} else {
+		$timings_First_Value[$lookupCounter] = "$timing";
+	}
+}
+
+sub addSecondTiming
+{
+	my $lookupCounter = $_[0];
+	my $timing = $_[1];
+	if( exists $timings_Second_Value[$lookupCounter]) {
+		$timings_Second_Value[$lookupCounter] .= ";$timing";
+	} else {
+		$timings_Second_Value[$lookupCounter] = "$timing";
+	}
+}
+
+sub addThirdTiming
+{
+	my $lookupCounter = $_[0];
+	my $timing = $_[1];
+	if( exists $timings_Third_Value[$lookupCounter]) {
+		$timings_Third_Value[$lookupCounter] .= ";$timing";
+	} else {
+		$timings_Third_Value[$lookupCounter] = "$timing";
+	}
+}
+
 sub printCSV
 {
 	open(CSV, ">lookup_concat.csv");
 	my $i;
-	print CSV "lookup;min1;min2;min3;max1;max2;max3;average1;average2;average3;novalue1;novalue2;novalue3;success1;success2;success3;\n";
+	print CSV "lookup;min1;min2;min3;max1;max2;max3;average1;average2;average3;novalue1;novalue2;novalue3;success1;success2;success3;invalidCount;median1;median2;median3;low1;low2;low3;high1;high2;high3;\n";
 	for($i = 0; $i < $maximum_Number_of_Lookups;$i++) {
 		my $average1 = "";
 		my $average2 = "";
@@ -235,32 +292,18 @@ sub printCSV
 		my $success1 = 0;
 		my $success2 = 0;
 		my $success3 = 0;
-		if (exists $average_First_Value[$i]){
-			$average1 = $average_First_Value[$i] / $average_First_Count[$i];
-		}
-		if (exists $average_Second_Value[$i]){
-			 $average2 = $average_Second_Value[$i] / $average_Second_Count[$i];
-		}
-		if (exists $average_Third_Value[$i]){
-			$average3 = $average_Third_Value[$i] / $average_Third_Count[$i];
-		}
-		if (exists $minimum_First_Value_Lookup[$i]) {
-			$min1 = $minimum_First_Value_Lookup[$i];
-		}
-		if (exists $minimum_Second_Value_Lookup[$i]) {
-			$min2 = $minimum_Second_Value_Lookup[$i];
-		}
-		if (exists $minimum_Third_Value_Lookup[$i]) {
-			$min3 = $minimum_Third_Value_Lookup[$i];
-		}
-		if (exists $maximum_First_Value_Lookup[$i]) {
-			$max1 = $maximum_First_Value_Lookup[$i];
-		}
-		if (exists $maximum_Second_Value_Lookup[$i]) {
-			$max2 = $maximum_Second_Value_Lookup[$i];
-		}
-		if (exists $maximum_Third_Value_Lookup[$i]) {
-			$max3 = $maximum_Third_Value_Lookup[$i];
+		my $invalid = "";
+		my $median1 = "";
+		my $median2 = "";
+		my $median3 = "";
+		my $low1 = "";
+		my $low2 = "";
+		my $low3 = "";
+		my $high1 = "";
+		my $high2 = "";
+		my $high3 = "";
+		if (exists $invalid_Value[$i]) {
+			$invalid = int($invalid_Value[$i]/$lookupCount[$i]);
 		}
 		if (exists $no_Correct_Value[$i]) {
 			$novalue1 = $no_Correct_Value[$i];
@@ -286,11 +329,117 @@ sub printCSV
 				$success3 = "";
 			}
 		}
-		print CSV "". $i+1 . ";$min1;$min2;$min3;$max1;$max2;$max3;$average1;$average2;$average3;$novalue1;$novalue2;$novalue3;$success1;$success2;$success3;\n";
+		if (exists $timings_First_Value[$i]) {
+			my @values = split(/;/, $timings_First_Value[$i]);
+			$min1 = calculateMin(@values);
+			$max1 = calculateMax(@values);
+			$average1 = calculateAverage(@values);
+			$median1 = calculateMedian(@values);
+			$low1 = calculateLowQuantil(@values);
+			$high1 = calculateHighQuantil(@values);
+		}
+		if (exists $timings_Second_Value[$i]) {
+			my @values = split(/;/, $timings_Second_Value[$i]);
+			$min2 = calculateMin(@values);
+			$max2 = calculateMax(@values);
+			$average2 = calculateAverage(@values);
+			$median2 = calculateMedian(@values);
+			$low2 = calculateLowQuantil(@values);
+			$high2 = calculateHighQuantil(@values);
+		}
+		if (exists $timings_Third_Value[$i]) {
+			my @values = split(/;/, $timings_Third_Value[$i]);
+			$min3 = calculateMin(@values);
+			$max3 = calculateMax(@values);
+			$average3 = calculateAverage(@values);
+			$median3 = calculateMedian(@values);
+			$low3 = calculateLowQuantil(@values);
+			$high3 = calculateHighQuantil(@values);
+		}
+		print CSV "". $i+1 . ";$min1;$min2;$min3;$max1;$max2;$max3;$average1;$average2;$average3;$novalue1;$novalue2;$novalue3;$success1;$success2;$success3;$invalid;$median1;$median2;$median3;$low1;$low2;$low3;$high1;$high1;$high3;\n";
 	}
 	close(CSV);
 }
 
+sub calculateMedian
+{
+	my $length = @_;
+	@_ =  sort {$a <=> $b} (@_);
+	my $median;
+	if($length%2 == 0 ) {
+		$median = ($_[$length/2] + $_[($length/2)-1])/2;
+	}else{
+		$median = $_[int($length/2)];
+	}
+	return $median;
+}
+
+sub calculateLowQuantil
+{
+	my $n = @_;
+	my @array = sort {$a <=> $b} (@_);
+	my $i = int($n*$LOW_QUANTIL);
+	my $min = calculateMin(@array);
+	my $median = calculateMedian(@array);
+	if($min > $array[$i]) {
+		print "$i: min=$min low=$array[$i]\n";
+	}
+	if($median < $array[$i]) {
+		print "$i: median=$median low=$array[$i]\n";
+		print "@array\n";
+	}
+	return $array[$i];
+}
+
+sub calculateHighQuantil
+{
+	my $n = @_;
+	my @array = sort {$a <=> $b} (@_);
+	my $i = int($n*$HIGH_QUANTIL);
+	my $max = calculateMax(@array);
+	my $median = calculateMedian(@array);
+	if ($max < $array[$i]) {
+		print "$i: max=$max high=$array[$i]\n";
+	}
+	if ($median > $array[$i]) {
+		print "$i: median=$max high=$array[$i]\n";
+		print "@array\n";
+	}
+	return $array[$i];
+}
+
+sub calculateMin
+{
+	my $min = $_[0];
+	foreach (@_){
+		if( $min > $_ ) {
+			$min = $_;
+		}
+	}
+	return $min;
+}
+
+sub calculateMax
+{
+	my $max = $_[0];
+	foreach (@_){
+		if( $max < $_ ) {
+			$max = $_;
+		}
+	}
+	return $max;
+}
+
+sub calculateAverage
+{
+	my $average;
+	my $length = @_;
+	foreach (@_) {
+		$average += $_;
+	}
+	$average /= $length;
+	return $average;
+}
 
 sub print_gnuplot_files
 {
@@ -307,9 +456,12 @@ sub print_gnuplot_files
 	print SUCCESS "set xtics 2\n";
 	print SUCCESS "set ytics 10\n";
 	print SUCCESS "set yrange [0:100]\n";
-	print SUCCESS "plot 'lookup_concat.csv' using 1:14 with lines title '1 correct value', \\\n";
-	print SUCCESS " ''                 using 1:15 with lines title '2 correct values', \\\n";
-	print SUCCESS " ''                 using 1:16 with lines title '3 correct values' \n";
+	print SUCCESS "set autoscale y2\n";
+	print SUCCESS "set y2label 'Number of false values'\n";
+	print SUCCESS "plot 'lookup_concat.csv' using 1:14 axis x1y1 with lines title 'first correct value', \\\n";
+	print SUCCESS " ''                 using 1:15 axis x1y1 with lines title 'second correct value', \\\n";
+	print SUCCESS " ''                 using 1:16 axis x1y1 with lines title 'third correct value', \\\n";
+	print SUCCESS " ''                 using 1:17 axis x1y2 with histeps title 'invalid values per lookup [truncated]' \n";
 	print SUCCESS "set output \"lookup_success.eps\"\n";
 	print SUCCESS "set terminal postscript eps\n";
 	print SUCCESS "replot\n";
@@ -324,15 +476,16 @@ sub print_gnuplot_duration_summary
 	my $correctValue = $_[1];
 	my $min = $correctValue + 1;
 	my $max = $correctValue + 4;
-	my $lowquantil = $min;
-	my $highquantil = $max;
+	my $lowquantil = $correctValue + 20;
+	my $highquantil = $correctValue + 23;
 	my $average = $correctValue + 7;
+	my $median = $correctValue + 17;
 	my $color = getColor($correctValue);
 	my $ratio = $correctValue + 13;
 	open( PLOT, ">$gnuplot_file");
 	print PLOT "set terminal png truecolor font \"Helvetica\" 10 size $PNG_OUTPUT_SIZE_X,$PNG_OUTPUT_SIZE_Y\nset output \'$gnuplot_png_file\'\n";
 	print PLOT "set datafile separator \";\"\n";
-	print PLOT "set title \"Duration until $correctValue correct value was found\"\n";
+	print PLOT "set title \"Duration until $correctValue correct value was found\" font \"Helvetica,12\"\n";
 	print PLOT "set ytics 60\n";
 	print PLOT "set xtics 1,1\n";
 	print PLOT "set y2range [0:100]\n";
@@ -343,8 +496,10 @@ sub print_gnuplot_duration_summary
 	print PLOT "set ylabel 'Duration until start of lookup [sec]'\n";
 	print PLOT "set y2label 'Success ratio [%]'\n";
 	print PLOT "set ytics nomirror\n";
-	print PLOT "plot 'lookup_concat.csv' using 1:$min:$highquantil:$lowquantil:$max axis x1y1 with candlesticks lt $color lw 1 notitle whiskerbars, \\\n";
-    print PLOT " ''                 using 1:$average:$average:$average:$average axis x1y1 with candlesticks lt -1 lw 2 notitle, \\\n";
+	print PLOT "set boxwidth 0.2\n";
+	print PLOT "plot 'lookup_concat.csv' using 1:$lowquantil:$min:$max:$highquantil axis x1y1 with candlesticks lt $color lw 1 notitle whiskerbars, \\\n";
+#    print PLOT " ''                 using 1:$average:$average:$average:$average axis x1y1 with candlesticks lt -1 lw 2 notitle, \\\n";
+    print PLOT " ''                 using 1:$median:$median:$median:$median axis x1y1 with candlesticks lt -1 lw 2 notitle, \\\n";
 	print PLOT " ''                 using 1:$ratio axis x1y2 with steps lt 1 title 'success ratio' \n";
 	print PLOT "set output \"$gnuplot_eps_file\"\n";
 	print PLOT "set terminal postscript eps\n";
