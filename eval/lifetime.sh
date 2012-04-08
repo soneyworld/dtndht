@@ -14,9 +14,9 @@ fi
 $ANNOUNCE -4 -p $PORT -a dtn://test.dtn/$PORT/$RAND >> $LOG_FILE
 $LOOKUP -c -4 -p $PORT+1 -l dtn://test.dtn/$PORT/$RAND >> $LOG_FILE &
 PID=$!
-for (( i = 0; i < 60 ; i++))
+for (( i = 0; i < 12 ; i++))
 do
-	sleep 1m
+	sleep 5m
 	kill -s USR1 $PID
 done
 
