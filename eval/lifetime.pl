@@ -135,12 +135,16 @@ sub parseFile
 					}
 					$line = <IN>;
 				}
-				if( $hitcounter == 1 ){
-					$firstHit[$lookupCounter] = $time - $lookupTimings[$lookupCounter];
-				}elsif ($hitcounter == 2 ) {
-					$secondHit[$lookupCounter] = $time - $lookupTimings[$lookupCounter];
-				}elsif ($hitcounter == 3 ) {
-					$thirdHit[$lookupCounter] = $time - $lookupTimings[$lookupCounter];
+				if( not exists $lookupTimings[$lookupCounter] ) {
+					print "Failure in File $inputfile\n"
+				} else {
+					if( $hitcounter == 1 ){
+						$firstHit[$lookupCounter] = $time - $lookupTimings[$lookupCounter];
+					}elsif ($hitcounter == 2 ) {
+						$secondHit[$lookupCounter] = $time - $lookupTimings[$lookupCounter];
+					}elsif ($hitcounter == 3 ) {
+						$thirdHit[$lookupCounter] = $time - $lookupTimings[$lookupCounter];
+					}
 				}
 			}
 		}
