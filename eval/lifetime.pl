@@ -2,8 +2,8 @@
 use strict;
 use warnings;
 
-my $PNG_OUTPUT_SIZE_X = 600;
-my $PNG_OUTPUT_SIZE_Y = 400;
+my $PNG_OUTPUT_SIZE_X = 800;
+my $PNG_OUTPUT_SIZE_Y = 600;
 
 my $num_args = $#ARGV + 1;
 if ($num_args < 1) {
@@ -173,7 +173,7 @@ sub parseFile
 	print PLOT "set datafile separator \";\"\n";
 	print PLOT "set title \"Periodic lookup of $eid\" font \"Helvetica,12\"\n";
 	print PLOT "set xlabel 'time until starting first lookup [sec]'\n";
-	print PLOT "set ylabel 'duration until start of lookup [sec]'\n";
+	print PLOT "set ylabel 'time until start of lookup [sec]'\n";
 	print PLOT "set y2label 'Number of invalid values'\n";
 	print PLOT "set xrange [-60:3600]\n";
 	print PLOT "set yrange [0:300]\n";
@@ -181,8 +181,7 @@ sub parseFile
 	print PLOT "set ytics 60\n";
 	print PLOT "set y2tics 0, 5\n";
 	print PLOT "set ytics nomirror\n";
-	print PLOT "set y2range [0:50]\n";
-	print PLOT "set autoscale y2\n";
+	print PLOT "set y2range [0:15]\n";
 	print PLOT "set boxwidth 60\n";
 #	print PLOT "set multiplot\n";
 	print PLOT "plot '$outputfile' every::1::30 using 2:4 axis x1y1 with linespoints title \"first correct answer\", \\\n";

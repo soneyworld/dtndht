@@ -3,11 +3,11 @@ use strict;
 use warnings;
 use Switch;
 
-my $PNG_OUTPUT_SIZE_X = 1200;
+my $PNG_OUTPUT_SIZE_X = 1000;
 my $PNG_OUTPUT_SIZE_Y = 800;
 
-my $PNG_SUCCESS_OUTPUT_SIZE_X = 600;
-my $PNG_SUCCESS_OUTPUT_SIZE_Y = 400;
+my $PNG_SUCCESS_OUTPUT_SIZE_X = 800;
+my $PNG_SUCCESS_OUTPUT_SIZE_Y = 600;
 
 my $LOW_QUANTIL = 0.05;
 my $HIGH_QUANTIL = 0.95;
@@ -456,8 +456,9 @@ sub print_gnuplot_files
 	print SUCCESS "set xtics 2\n";
 	print SUCCESS "set ytics 10\n";
 	print SUCCESS "set yrange [0:100]\n";
-	print SUCCESS "set autoscale y2\n";
-	print SUCCESS "set y2label 'Number of false values'\n";
+	print SUCCESS "set y2range [0:15]\n";
+	print SUCCESS "set y2tics 5\n";
+	print SUCCESS "set y2label 'Number of invalid values'\n";
 	print SUCCESS "plot 'lookup_concat.csv' using 1:14 axis x1y1 with lines title 'first correct value', \\\n";
 	print SUCCESS " ''                 using 1:15 axis x1y1 with lines title 'second correct value', \\\n";
 	print SUCCESS " ''                 using 1:16 axis x1y1 with lines title 'third correct value', \\\n";
@@ -493,7 +494,7 @@ sub print_gnuplot_duration_summary
 	print PLOT "set xrange [0:42]\n";
 	print PLOT "set y2tics 10\n";
 	print PLOT "set xlabel 'Lookup Number'\n";
-	print PLOT "set ylabel 'Duration until start of lookup [sec]'\n";
+	print PLOT "set ylabel 'Time until start of lookup [sec]'\n";
 	print PLOT "set y2label 'Success ratio [%]'\n";
 	print PLOT "set ytics nomirror\n";
 	print PLOT "set boxwidth 0.4\n";
