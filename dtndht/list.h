@@ -29,7 +29,9 @@ struct dhtentry {
 struct list {
 	struct dhtentry *head;
 };
-// removes all old entries which are update is longer ago than the threshold
+// removes all old entries which update is longer ago than the threshold
+// if a positive threshold is given, only the non announced entries are deleted
+// if a negative threshold is given, all entries will be deleted
 void cleanUpList(struct list *table, int threshold);
 
 // For deactivating an announcement, this method should be called.
