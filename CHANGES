@@ -1,3 +1,9 @@
+20 October 2012: dtndht-0.2.3
+  * Memory Leaks fixed
+    * If empty neighbor information were parsed, the allocated space is now freed
+    * On shutdown, the announcement list will be freed correctly
+  * Improved README
+
 13 March 2012: dtndht-0.2.2
   * New callback function to inform, if a search is done
   * Removed the requirement of openssl
