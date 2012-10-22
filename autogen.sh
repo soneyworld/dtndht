@@ -1,9 +1,7 @@
 #!/bin/bash
 
 # create version file
-. mkversion.sh $
-# create version file
-. mkversion.sh $@@
+. mkversion.sh $@
 if [ ! -d "m4" ]; then
 	mkdir "m4"
 fi
