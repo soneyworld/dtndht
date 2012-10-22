@@ -1,7 +1,7 @@
 Source: dtndht
 Priority: extra
 Maintainer: Till Lorentzen <lorentze@ibr.cs.tu-bs.de>
-Build-Depends: debhelper (>= 8.0.0), autotools-dev, libssl-dev (>= 0.9.8), cdbs (>= 0.4), pkg-config
+Build-Depends: debhelper (>= 7.0), autotools-dev, libssl-dev (>= 0.9.8), cdbs (>= 0.4), pkg-config
 Standards-Version: 3.9.2
 Section: libs
 Homepage: http://www.ibr.cs.tu-bs.de/
