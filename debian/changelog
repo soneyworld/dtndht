@@ -4,7 +4,7 @@ dtndht (0.2.3) experimental; urgency=low
     * On shutdown, the announcement list will be freed correctly
   * Improved README
 
- -- Till Lorentzen <lorentze@ibr.cs.tu-bs.de> Sat, 20 Oct 2012 11:00:00 +0100
+ -- Till Lorentzen <lorentze@ibr.cs.tu-bs.de>  Sat, 20 Oct 2012 11:00:00 +0100
 
 dtndht (0.2.2) experimental; urgency=low
 
