@@ -3192,10 +3192,13 @@ static int parse_dtn_message(const unsigned char *buf, int buflen,
 			pos = p - buf + 6;
 			struct dtn_eid * neighbours = create_dtn_eid();
 			int n = parse_dtn_eid_list(p+6, buflen-pos, neighbours);
-			if(n>=0){
+			if(n >= 0){
 				pos += n;
-				if(n>0)
+				if(n > 0) {
 					result->neighbours = neighbours;
+				}else{
+					free_dtn_eid(neighbours);
+				}
 			} else {
 				free_dtn_eid(neighbours);
 				goto error;

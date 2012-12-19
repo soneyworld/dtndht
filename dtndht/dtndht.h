@@ -60,7 +60,7 @@ struct dtn_dht_lookup_result {
 
 // Loading previous saved buckets for faster bootstrapping
 int dtn_dht_load_prev_conf(const char *filename);
-// Save acutal buckets to file for faster bootstrapping
+// Save actual buckets to file for faster bootstrapping
 int dtn_dht_save_conf(const char *filename);
 
 // Generates an ID from given string. This produces a deterministic ID.

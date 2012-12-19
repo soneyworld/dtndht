@@ -15,7 +15,8 @@ void cleanUpList(struct list *table, int threshold) {
 	struct dhtentry *prev = NULL;
 	struct dhtentry *next = NULL;
 	while (pos != NULL) {
-		if (time(NULL) > (pos->updatetime + threshold) && !pos->announce) {
+		if (time(NULL) > (pos->updatetime + threshold) && ((!pos->announce)
+				|| (threshold < 0))) {
 			// Delete pos by changing pointer
 			next = pos->next;
 			if (prev != NULL) {
