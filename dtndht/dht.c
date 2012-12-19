@@ -2797,17 +2797,19 @@ static int send_error(const struct sockaddr *sa, int salen, unsigned char *tid,
 static int send_get_dtninfo(const struct sockaddr *sa, int salen,
 		const unsigned char *tid, int tid_len, const char *eid,
 		int eidlen) {
-	char buf[512];
+	// Max EID length is 1023
+	// RPC Overhead is 15 + 15 + 7 + 16 bytes tid
+	char buf[1076];
 	int i = 0, rc;
-	rc = snprintf(buf + i, 512 - i, "d1:ad3:eid%d:", eidlen);
-	INC(i, rc, 512);
-	COPY(buf, i, eid, eidlen, 512);
-	rc = snprintf(buf + i, 512 - i, "e1:q3:dtn1:t%d:", tid_len);
-	INC(i, rc, 512);
-	COPY(buf, i, tid, tid_len, 512);
-	ADD_V(buf, i, 512);
-	rc = snprintf(buf + i, 512 - i, "1:y1:qe");
-	INC(i, rc, 512);
+	rc = snprintf(buf + i, 1076 - i, "d1:ad3:eid%d:", eidlen);
+	INC(i, rc, 1076);
+	COPY(buf, i, eid, eidlen, 1076);
+	rc = snprintf(buf + i, 1076 - i, "e1:q3:dtn1:t%d:", tid_len);
+	INC(i, rc, 1076);
+	COPY(buf, i, tid, tid_len, 1076);
+	ADD_V(buf, i, 1076);
+	rc = snprintf(buf + i, 1076 - i, "1:y1:qe");
+	INC(i, rc, 1076);
 	return dht_send(buf, i, 0, sa, salen);
 
 	fail: errno = ENOSPC;
