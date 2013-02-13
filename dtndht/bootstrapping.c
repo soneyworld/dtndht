@@ -98,12 +98,12 @@ int bootstrapping_load_conf(const char *filename) {
 	memset(inputbuf, 1, inputlen);
 	inputlen = fread(inputbuf, 1, inputlen, fp);
 	void * psep;
-	psep = memchr(inputbuf, 0, inputlen - 19);
-	while (psep != NULL) {
-		if (memcmp(psep, separator, 20) == 0) {
-			int i;
-			int numberOfIPv4 = (psep - inputbuf) / 6;
-			int numberOfIPv6 = (inputlen - ((psep - inputbuf) + 20)) / 18;
+	psep = strstr(inputbuf, separator);
+	if (psep != NULL) {
+		int i;
+		int numberOfIPv4 = (psep - inputbuf) / 6;
+		int numberOfIPv6 = (inputlen - ((psep - inputbuf) + 20)) / 18;
+		if (inputlen == numberOfIPv4 * 6 + 20 + numberOfIPv6 * 18) {
 			for (i = 0; i < numberOfIPv4; i++) {
 				memcpy(&(in.sin_addr), inputbuf + 6 * i, 4);
 				memcpy(&(in.sin_port), inputbuf + 6 * i + 4, 2);
@@ -120,9 +120,7 @@ int bootstrapping_load_conf(const char *filename) {
 			printf("Found %d ipv4 addresses\n", numberOfIPv4);
 			printf("Found %d ipv6 addresses\n", numberOfIPv6);
 #endif
-			break;
 		}
-		psep = memchr(psep + 1, 0, inputlen - 19 - (psep - inputbuf));
 	}
 	free(inputbuf);
 	return fclose(fp);
