@@ -8,9 +8,14 @@
 #else
 #define SHA_DIGEST_LENGTH 20
 #endif
+#include "config.h"
+#ifdef EVALUATION
+#define DEBUG_SAVING
+#endif
 
 #include "bootstrapping.h"
 #include "dtndht.h"
+
 
 static int dht_has_been_ready = 0;
 
@@ -97,12 +102,19 @@ int bootstrapping_load_conf(const char *filename) {
 	inputbuf = malloc(inputlen);
 	memset(inputbuf, 1, inputlen);
 	inputlen = fread(inputbuf, 1, inputlen, fp);
-	void * psep;
-	psep = strstr(inputbuf, separator);
-	if (psep != NULL) {
-		int i;
-		int numberOfIPv4 = (psep - inputbuf) / 6;
-		int numberOfIPv6 = (inputlen - ((psep - inputbuf) + 20)) / 18;
+	void * psep = NULL;
+	size_t pos = 0;
+	while(pos<inputlen){
+		if(memcmp(inputbuf+pos,separator,20)==0){
+			psep = inputbuf+pos;
+			break;
+		}
+		pos++;
+	}
+	if (psep != NULL ) {
+		size_t i;
+		size_t numberOfIPv4 = (psep - inputbuf) / 6;
+		size_t numberOfIPv6 = (inputlen - ((psep - inputbuf) + 20)) / 18;
 		if (inputlen == numberOfIPv4 * 6 + 20 + numberOfIPv6 * 18) {
 			for (i = 0; i < numberOfIPv4; i++) {
 				memcpy(&(in.sin_addr), inputbuf + 6 * i, 4);
